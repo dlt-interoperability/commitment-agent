@@ -38,14 +38,29 @@ The agent can be run with:
 ./gradlew run
 ```
 
+### Making queries from the external client
+
+The [external client](https://github.com/dlt-interoperability/external-client)
+can make requests to the agent. To do so, clone the repo and run:
+
+```
+./gradlew run
+```
+
+### Troubleshooting gRPC
+
+[BloomRPC](https://github.com/uw-labs/bloomrpc) can be used if the gRPC server
+needs to be tested from a dummy client. BloomRPC is like Postman for gRPC.
+
 ## TODO
 
 Fabric
 
-- Use a different version of chaincode?
+- Possibly use a different Fabric test network and version of chaincode. Fabric
+  samples test network is currently being used and it is quite bulky.
 - We will need an agent running for every peer, so FabricClient will need to be
-  parameterised
-- Add an BlockEvent listener
+  parameterised.
+- Add an BlockEvent listener.
 
 RSA Accumulator
 
@@ -64,3 +79,7 @@ Ethereum Client
 
 - Import Web3J.
 - Implement functions in the smart contract interface to publish accumulator.
+
+gRPC server
+
+- Move protos directory to `src/main` and update `build.gradle`
