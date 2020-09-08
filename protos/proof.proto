@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package proof;
+
+
+service Agent {
+  rpc RequestState(Request) returns (Proof) {}
+}
+
+message Request {
+  string key = 1;
+  Commitment commitment = 2;
+}
+
+message Commitment {
+  string accumulator = 1;
+  int32 block_height = 2;
+}
+
+message Proof {
+  string state = 1;
+  string nonce = 2;
+  string proof = 3;
+  string n = 4;
+}
