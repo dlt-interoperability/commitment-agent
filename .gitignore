@@ -4,3 +4,6 @@
 
 # Ignore Gradle build output directory
 build
+
+# Ignore credentials issued by the Fabric CA
+wallet/*
