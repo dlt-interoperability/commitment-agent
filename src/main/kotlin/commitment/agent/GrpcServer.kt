@@ -34,6 +34,8 @@ class GrpcServer(private val port: Int) {
 class GrpcService : AgentGrpcKt.AgentCoroutineImplBase() {
     override suspend fun requestState(request: ProofOuterClass.Request): ProofOuterClass.Proof {
         println("Request for state received: $request")
-        return createProof("abc")
+        val proof = createProof(request.key)
+        println("Returning proof response: $proof\n")
+        return proof
     }
 }

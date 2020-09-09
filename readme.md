@@ -52,6 +52,25 @@ can make requests to the agent. To do so, clone the repo and run:
 [BloomRPC](https://github.com/uw-labs/bloomrpc) can be used if the gRPC server
 needs to be tested from a dummy client. BloomRPC is like Postman for gRPC.
 
+## Coding principles
+
+This codebase uses functional programming principles as much as possible. A
+functional library for Kotlin, called [Arrow](https://arrow-kt.io/docs/core/) is
+used, primarily for error handling with the `Either` type.
+
+Conventions
+
+- Use immutable state.
+- Catch exceptions as close as possible to their source and convert to [Arrow's
+  `Either`
+  type](https://arrow-kt.io/docs/apidocs/arrow-core-data/arrow.core/-either/).
+- Implement functions as expressions. Flows that produce errors can be composed
+  using `map` and `flatMap`. Avoid statements with side effects in functions.
+- Use recursion over loops (when tail recursion is possible to avoid stack overflow).
+
+An example of how to catch exceptions and convert to and Either type is shown in
+[this gist](https://gist.github.com/airvin/79f1fb2a3821a9e5d227db3ee9561f42).
+
 ## TODO
 
 Fabric

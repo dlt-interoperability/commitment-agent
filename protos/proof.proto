@@ -8,18 +8,24 @@ service Agent {
 }
 
 message Request {
+  // The key of the Fabric state (e.g. "marble1")
   string key = 1;
   Commitment commitment = 2;
 }
 
 message Commitment {
+  // String representation of the accumulator BigInteger
   string accumulator = 1;
   int32 block_height = 2;
 }
 
 message Proof {
+  // JSON string representation of the KVWrite state
   string state = 1;
+  // String representation of the nonce BigInteger
   string nonce = 2;
+  // String representation of the proof BigInteger
   string proof = 3;
+  // String representation of the n BigInteger
   string n = 4;
 }
