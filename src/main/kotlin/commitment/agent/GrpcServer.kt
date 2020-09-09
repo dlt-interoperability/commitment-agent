@@ -1,7 +1,9 @@
 package commitment.agent
 
+import arrow.core.Either
 import io.grpc.Server
 import io.grpc.ServerBuilder
+import org.starcoin.rsa.RSAAccumulator
 import proof.AgentGrpcKt
 import proof.ProofOuterClass
 
@@ -32,10 +34,19 @@ class GrpcServer(private val port: Int) {
 }
 
 class GrpcService : AgentGrpcKt.AgentCoroutineImplBase() {
-    override suspend fun requestState(request: ProofOuterClass.Request): ProofOuterClass.Proof {
-        println("Request for state received: $request")
-        val proof = createProof(request.key)
-        println("Returning proof response: $proof\n")
-        return proof
+    override suspend fun requestState(request: ProofOuterClass.Request): ProofOuterClass.ProofResponse {
+        println("Received request for state and proof: $request")
+        val accumulator = initialiseAccumulator()
+        return createProof(request.key, accumulator).fold({ error ->
+            println("Returning error: ${error.message}\n")
+            ProofOuterClass.ProofResponse.newBuilder()
+                    .setError(error.message)
+                    .build()
+        }, { proof ->
+            println("Returning proof: $proof\n")
+            ProofOuterClass.ProofResponse.newBuilder()
+                    .setProof(proof)
+                    .build()
+        })
     }
 }

@@ -15,6 +15,10 @@ plugins {
 
 repositories {
     jcenter()
+    // Local Maven repository
+    maven {
+        url 'file://Users/allirvin/.m2/repository'
+    }
 }
 
 sourceSets {
@@ -42,6 +46,9 @@ dependencies {
     implementation "io.grpc:grpc-netty-shaded:$grpc_version"
     implementation "io.grpc:grpc-protobuf:$grpc_version"
     implementation "io.grpc:grpc-stub:$grpc_version"
+
+    // RSA accumulator library
+    implementation "org.starcoin.rsa:rsa-accumulator:0.1"
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {

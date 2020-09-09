@@ -8,6 +8,15 @@ state in the accumulator.
 
 ## Prerequisites
 
+### Build the RSA accumulator library and publish to MavenLocal
+
+The external client uses the
+[rsa-accumulator-kotlin](https://github.com/dlt-interoperability/rsa-accumulator-kotlin)
+library to verify membership proofs provided by the Fabric agent. This
+repository needs to be cloned, built, and published to a local Maven repository.
+Follow instructions in the repo to do this.
+**Change line 20 in the `build.gradle` to point to your local Maven repository directory.**
+
 ### Start the Fabric network
 
 Before running the agent, start up a Fabric network. The recommended network is
@@ -41,10 +50,12 @@ The agent can be run with:
 ### Making queries from the external client
 
 The [external client](https://github.com/dlt-interoperability/external-client)
-can make requests to the agent. To do so, clone the repo and run:
+is a command line application that can make requests to the agent. To do so,
+clone the repo, update path to local Maven repository, and run:
 
 ```
-./gradlew run
+./gradlew installDist
+./build/install/external-client/bin/external-client get-proof key1
 ```
 
 ### Troubleshooting gRPC
@@ -65,11 +76,15 @@ Conventions
   `Either`
   type](https://arrow-kt.io/docs/apidocs/arrow-core-data/arrow.core/-either/).
 - Implement functions as expressions. Flows that produce errors can be composed
-  using `map` and `flatMap`. Avoid statements with side effects in functions.
+  using `map`, `flatMap` and `fold`. Avoid statements with side effects in functions.
 - Use recursion over loops (when tail recursion is possible to avoid stack overflow).
 
 An example of how to catch exceptions and convert to and Either type is shown in
 [this gist](https://gist.github.com/airvin/79f1fb2a3821a9e5d227db3ee9561f42).
+
+An example of folding over an Either Error to reduce to a single type is
+demonstrated in [this
+gist](https://gist.github.com/airvin/eabc99a9552a0573afd2dd9a13e75948).
 
 ## TODO
 
@@ -83,14 +98,15 @@ Fabric
 
 RSA Accumulator
 
-- Import RSA accumulator library.
+- Add a config file to store path to local Maven repository for the
+  `build.gradle` file.
 - Expose function that will be triggered by the Fabric block event listener to
   update RSA accumulator after every block is received.
 - Update function should trigger the Ethereum publication function every _k_
   blocks (with signature).
 - Decide how Fabric state will be stored. The Kotlin RSA library is creating a
   nonce for every state added to the accumulator to make it a prime. A map of the state and
-  prime is stored in memory, but should we use persistent storage for this?
+  prime is stored in memory, but we should use persistent storage.
 - Expose function to get state based on key.
 - Expose function to create a membership proof for the key.
 

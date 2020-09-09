@@ -3,7 +3,6 @@ package commitment.agent
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.FileInputStream
-import java.nio.file.Paths
 import java.util.*
 
 fun main(args: Array<String>) {

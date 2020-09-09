@@ -4,7 +4,7 @@ package proof;
 
 
 service Agent {
-  rpc RequestState(Request) returns (Proof) {}
+  rpc RequestState(Request) returns (ProofResponse) {}
 }
 
 message Request {
@@ -19,6 +19,13 @@ message Commitment {
   int32 block_height = 2;
 }
 
+message ProofResponse {
+  oneof response {
+    Proof proof = 1;
+    string error = 2;
+  }
+}
+
 message Proof {
   // JSON string representation of the KVWrite state
   string state = 1;
@@ -26,6 +33,8 @@ message Proof {
   string nonce = 2;
   // String representation of the proof BigInteger
   string proof = 3;
+  //String representation of the accumulator value
+  string a = 4;
   // String representation of the n BigInteger
-  string n = 4;
+  string n = 5;
 }
