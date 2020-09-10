@@ -15,21 +15,25 @@ The external client uses the
 library to verify membership proofs provided by the Fabric agent. This
 repository needs to be cloned, built, and published to a local Maven repository.
 Follow instructions in the repo to do this.
-**Change line 20 in the `build.gradle` to point to your local Maven repository directory.**
+**Change line 21 in the `build.gradle` to point to your local Maven repository directory.**
 
 ### Start the Fabric network
 
 Before running the agent, start up a Fabric network. The recommended network is
-the
-[test-network](https://github.com/hyperledger/fabric-samples/tree/master/test-network)
-in the fabric-samples repository. It is also recommended to use images for
-Fabric v2.2. After cloning or pulling the latest version of the fabric-samples repository,
-run the following from the test-network directory:
+the [fabric-network](https://github.com/dlt-interoperability/fabric-network). It
+is also recommended to use images for Fabric v2.2. After cloning or pulling the
+latest version of the fabric-network repository, run the following:
 
 ```
-./network.sh up createChannel -c mychannel -ca
-./network.sh deployCC -ccn basic -ccl javascript
+make start
+make deploy-cc
+make invoke-cc
 ```
+
+The `invoke-cc` make target starts a Fabric javascript application that submits
+`CreateAsset` transactions every 10 seconds. This can be cancelled with
+`ctrl-c`. The `make invoke-cc` can be used repetitively without needing to
+restart the network.
 
 ### Update the config properties
 
@@ -94,9 +98,12 @@ Fabric
   samples test network is currently being used and it is quite bulky.
 - We will need an agent running for every peer, so FabricClient will need to be
   parameterised.
-- Add an BlockEvent listener.
+- Process the blocks properly
+  - Check if it is a config block
+  - Check if Tx is valid
+  - Convert KVWrite to form that can be used by the RSA accumulator manager
 
-RSA Accumulator
+RSA Accumulators
 
 - Add a config file to store path to local Maven repository for the
   `build.gradle` file.
