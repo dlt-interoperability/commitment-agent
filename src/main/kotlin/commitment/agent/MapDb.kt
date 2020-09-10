@@ -7,52 +7,48 @@ import org.mapdb.Serializer
 import org.starcoin.rsa.RSAAccumulator
 
 class MapDb {
-    fun start(initialValue: String) {
-        println("Initialising DB")
+    fun start(initialValue: String): Either<Error, Unit> = try {
         val db = fileDB("file.db")
                 .fileMmapEnable()
                 .make()
-        println("DB created")
         val map = db
                 .hashMap("accumulator", Serializer.INTEGER, Serializer.STRING)
                 .createOrOpen()
-        // Make JSON string of RSA accumulator and store that
-        println("Storing empty accumulator")
         map[0] = initialValue
         db.commit()
-        println("Closing DB connection")
         db.close()
+        Right(Unit)
+    } catch (e: Exception) {
+        println("DB Error: Error initialising database ${e.stackTrace}\n")
+        Left(Error("DB Error: Error initialising database ${e.message}\n"))
     }
 
-    fun update(key: Int, value: String) {
+    fun update(key: Int, value: String): Either<Error, Unit> = try {
         val db = fileDB("file.db")
                 .fileMmapEnable()
                 .make()
-        println("Connected to DB: $db")
         val map = db
                 .hashMap("accumulator", Serializer.INTEGER, Serializer.STRING)
                 .createOrOpen()
-        println("Storing $value in key $key")
         map[key] = value
         db.commit()
-        println("Closing DB connection")
         db.close()
+        Right(Unit)
+    } catch (e: Exception) {
+        println("DB Error: Error updating database ${e.stackTrace}\n")
+        Left(Error("DB Error: Error updating database ${e.message}\n"))
     }
 
     fun get(key: Int): Either<Error, String> {
         val db = fileDB("file.db")
                 .fileMmapEnable()
                 .make()
-        println("Connected to DB: $db")
         val map = db
                 .hashMap("accumulator", Serializer.INTEGER, Serializer.STRING)
                 .createOrOpen()
-        println("Getting value for $key")
         val value = map[key]
-        println("Closing DB connection")
         db.close()
         return if (value != null) {
-            println("Returning value $value")
             Right(value)
         } else {
             println("DB Error: Key $key not found in db.\n")

@@ -1,6 +1,7 @@
 package commitment.agent
 
 import arrow.core.Either
+import arrow.core.Left
 import arrow.core.flatMap
 import com.google.gson.Gson
 import org.hyperledger.fabric.protos.common.Common
@@ -12,25 +13,30 @@ import proof.ProofOuterClass.Proof
 
 data class AccumulatorManager(val accumulator: RSAAccumulator = RSAAccumulator()) {
 
-        // Start - initialise accumulator and store it in the DB
+    // Start - initialise accumulator and store it in the DB
 
-        // Add - add a key and store new accumulator and data map in the DB
+    // Add - add a key and store new accumulator and data map in the DB
 
-        // Delete - delete a key and store new accumulator and data map in the DB
+    // Delete - delete a key and store new accumulator and data map in the DB
 }
 
-fun initialiseAccumulator() {
+fun initialiseAccumulator(): Either<Error, Unit> = try {
+    println("Initialising accumulator")
     val accumulator = RSAAccumulator()
+    println("Initialising DB")
     val db = MapDb()
     val accumulatorJsonString = Gson().toJson(accumulator, RSAAccumulator::class.java)
     db.start(accumulatorJsonString)
+} catch (e: Exception) {
+    println("Accumulator Error: Error initialising accumulator: ${e.stackTrace}")
+    Left(Error("Accumulator Error: Error initialising accumulator: ${e.message}"))
 }
 
-fun updateAccumulator(block: Common.Block) {
+fun updateAccumulator(block: Common.Block): Either<Error, Unit> = try {
     val db = MapDb()
-    val accumulator = db.get(block.header.number.toInt()).map {
+    db.get(block.header.number.toInt()).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
-    }.map {
+    }.flatMap {
         // iterate through KVWrites in the block here.
         val state1 = KV("key1", "value1")
         val kv1 = KVWrite(
@@ -43,13 +49,16 @@ fun updateAccumulator(block: Common.Block) {
         val accumulatorJson = Gson().toJson(it, RSAAccumulator::class.java)
         db.update(block.header.number.toInt(), accumulatorJson)
     }
+} catch (e: Exception) {
+    println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
+    Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
 }
 
-fun fakeUpdateAccumulator(blockHeight: Int) {
+fun fakeUpdateAccumulator(blockHeight: Int): Either<Error, Unit> = try {
     val db = MapDb()
-    val accumulator = db.get(blockHeight-1).map {
+    db.get(blockHeight-1).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
-    }.map {
+    }.flatMap {
         val state0 = KV("key0", "value")
         val kv0 = KVWrite(
                 key = "key0",
@@ -70,6 +79,9 @@ fun fakeUpdateAccumulator(blockHeight: Int) {
         val accumulatorJson = Gson().toJson(it, RSAAccumulator::class.java)
         db.update(blockHeight, accumulatorJson)
     }
+} catch (e: Exception) {
+    println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
+    Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
 }
 
 fun getState(key: String): String = "not yet implemented"
@@ -86,10 +98,8 @@ fun createProof(key: String, commitment: ProofOuterClass.Commitment): Either<Err
                 value = state1.toString().toByteArray()
         )
         val key1 = kvWriteToBigInteger(kv1)
-        println("\nCreating proof for key $key1\n")
 
         accumulator.createProof(key1).map { proof ->
-            println("accumulator created proof $proof")
             Proof.newBuilder()
                     // TODO: This should return a JSON string fo the KVWrite
                     .setState(key1.toString())
@@ -100,7 +110,7 @@ fun createProof(key: String, commitment: ProofOuterClass.Commitment): Either<Err
                     .build()
         }
     }
-    println("Created proof: $proof")
+    println("Created proof: $proof\n")
     return proof
 }
 

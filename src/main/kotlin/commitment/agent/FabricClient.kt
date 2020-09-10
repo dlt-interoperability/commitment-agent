@@ -1,6 +1,11 @@
 package commitment.agent
 
+import arrow.core.Either
+import arrow.core.extensions.either.applicative.applicative
+import arrow.core.extensions.list.traverse.traverse
+import arrow.core.identity
 import org.hyperledger.fabric.gateway.*
+import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
 import org.hyperledger.fabric.sdk.User
 import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
@@ -24,8 +29,9 @@ class FabricClient() {
         try {
             val gateway = connect()
                 println("Connected!")
-                // Obtain a smart contract deployed on the network.
-                val network = gateway.getNetwork("mychannel")
+            val network = gateway.getNetwork("mychannel")
+            // Start listener for block events
+            network.addBlockListener { handleBlockEvent(it) }
         } catch (e: ContractException) {
             e.printStackTrace()
         } catch (e: InterruptedException) {
@@ -148,4 +154,22 @@ fun connect(): Gateway {
             .networkConfig(networkConfigFile)
             .discovery(true)
     return builder.connect()
+}
+
+fun handleBlockEvent(blockEvent: BlockEvent) {
+    // Store all the kvWrites in the accumulator
+    val blockNum = blockEvent.blockNumber.toInt()
+    val kvWrites = blockEvent.transactionEvents
+            .filter { it.isValid }
+            .flatMap { transactionEvent ->
+                transactionEvent.transactionActionInfos.flatMap { transactionActionInfo ->
+                    transactionActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
+                        println("NsRwsetInfo: $nsRwsetInfo")
+                        nsRwsetInfo.rwset.writesList.map { kvWrite ->
+                            println("kvWrite: $kvWrite")
+                            kvWrite
+                        }
+                    }
+                }
+            }
 }

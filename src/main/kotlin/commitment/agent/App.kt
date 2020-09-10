@@ -25,6 +25,4 @@ fun main(args: Array<String>) {
     val server = GrpcServer(grpcServerPort)
     server.start()
     server.blockUntilShutdown()
-
-
 }
