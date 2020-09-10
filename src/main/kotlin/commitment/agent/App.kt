@@ -6,6 +6,12 @@ import java.io.FileInputStream
 import java.util.*
 
 fun main(args: Array<String>) {
+
+    // Initialise the accumulator
+    initialiseAccumulator()
+    // Make a fake update
+    fakeUpdateAccumulator(1)
+
     // Start the Fabric client
     GlobalScope.launch {
         val fabricClient = FabricClient()
@@ -19,4 +25,6 @@ fun main(args: Array<String>) {
     val server = GrpcServer(grpcServerPort)
     server.start()
     server.blockUntilShutdown()
+
+
 }

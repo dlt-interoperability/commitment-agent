@@ -42,6 +42,12 @@ dependencies {
 
     // RSA accumulator library
     implementation "org.starcoin.rsa:rsa-accumulator:0.1"
+
+    // DB
+    implementation 'org.mapdb:mapdb:3.0.8'
+
+    // Library for JSON serialisation and deserialisation
+    implementation 'com.google.code.gson:gson:2.8.6'
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {

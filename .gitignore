@@ -7,3 +7,6 @@ build
 
 # Ignore credentials issued by the Fabric CA
 wallet/*
+
+# DB
+file.db

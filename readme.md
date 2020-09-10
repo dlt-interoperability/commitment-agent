@@ -105,16 +105,19 @@ RSA Accumulator
 - Update function should trigger the Ethereum publication function every _k_
   blocks (with signature).
 - Decide how Fabric state will be stored. The Kotlin RSA library is creating a
-  nonce for every state added to the accumulator to make it a prime. A map of the state and
-  prime is stored in memory, but we should use persistent storage.
+  nonce for every state added to the accumulator to make it a prime. A map of
+  the state and prime is stored in memory, but we should use persistent storage
+  (either [jankotek/mapdb](https://github.com/jankotek/mapdb),
+  [JetBrains/xodus](https://github.com/JetBrains/xodus) or
+  [JetBrains/Exposed](https://github.com/JetBrains/Exposed)).
 - Expose function to get state based on key.
 - Expose function to create a membership proof for the key.
+- Use Gson (or Moshi) to JSON stringify the KV that is stored in accumulator and
+  is returned in the proof.
+- Figure out how the RSA accumulator can be initialised deterministically so it
+  will be the same across all agents.
 
 Ethereum Client
 
 - Import Web3J.
 - Implement functions in the smart contract interface to publish accumulator.
-
-gRPC server
-
-- Move protos directory to `src/main` and update `build.gradle`

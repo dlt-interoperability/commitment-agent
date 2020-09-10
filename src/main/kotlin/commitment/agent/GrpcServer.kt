@@ -36,8 +36,7 @@ class GrpcServer(private val port: Int) {
 class GrpcService : AgentGrpcKt.AgentCoroutineImplBase() {
     override suspend fun requestState(request: ProofOuterClass.Request): ProofOuterClass.ProofResponse {
         println("Received request for state and proof: $request")
-        val accumulator = initialiseAccumulator()
-        return createProof(request.key, accumulator).fold({ error ->
+        return createProof(request.key, request.commitment).fold({ error ->
             println("Returning error: ${error.message}\n")
             ProofOuterClass.ProofResponse.newBuilder()
                     .setError(error.message)
