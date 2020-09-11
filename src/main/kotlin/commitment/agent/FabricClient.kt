@@ -30,6 +30,9 @@ class FabricClient() {
             val gateway = connect()
                 println("Connected!")
             val network = gateway.getNetwork("mychannel")
+            // TODO: we need a complete history of all blocks so we need to fetch
+            // all previous blocks from the peer here.
+
             // Start listener for block events
             network.addBlockListener { handleBlockEvent(it) }
         } catch (e: ContractException) {
@@ -156,20 +159,30 @@ fun connect(): Gateway {
     return builder.connect()
 }
 
+/**
+ * The handleBlockEvent function processes every block that's received from the Fabric
+ * peer to determine how the accumulator should be updated. If the block is a config
+ * (anything else?) block, the accumulator should not be modified, but a new entry of the
+ * accumulator should be stored in the accumulator DB for that block height. Otherwise,
+ * the block will contain updates to the application state in the Fabric ledger, and the
+ * accumulator should be updated accordingly.
+ */
 fun handleBlockEvent(blockEvent: BlockEvent) {
-    // Store all the kvWrites in the accumulator
     val blockNum = blockEvent.blockNumber.toInt()
     val kvWrites = blockEvent.transactionEvents
+            // Filter the valid transactions
             .filter { it.isValid }
+            // Get the set of KVWrites across all transactions
             .flatMap { transactionEvent ->
                 transactionEvent.transactionActionInfos.flatMap { transactionActionInfo ->
                     transactionActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
-                        println("NsRwsetInfo: $nsRwsetInfo")
                         nsRwsetInfo.rwset.writesList.map { kvWrite ->
                             println("kvWrite: $kvWrite")
-                            kvWrite
+                            KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                         }
                     }
                 }
             }
+    // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
+    updateAccumulator(blockNum, kvWrites)
 }

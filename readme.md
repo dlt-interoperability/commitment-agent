@@ -17,38 +17,53 @@ repository needs to be cloned, built, and published to a local Maven repository.
 Follow instructions in the repo to do this.
 **Change line 21 in the `build.gradle` to point to your local Maven repository directory.**
 
-### Start the Fabric network
-
-Before running the agent, start up a Fabric network. The recommended network is
-the [fabric-network](https://github.com/dlt-interoperability/fabric-network). It
-is also recommended to use images for Fabric v2.2. After cloning or pulling the
-latest version of the fabric-network repository, run the following:
-
-```
-make start
-make deploy-cc
-make invoke-cc
-```
-
-The `invoke-cc` make target starts a Fabric javascript application that submits
-`CreateAsset` transactions every 10 seconds. This can be cancelled with
-`ctrl-c`. The `make invoke-cc` can be used repetitively without needing to
-restart the network.
-
 ### Update the config properties
 
 Update the config file in `/src/main/resources/config.properties` to point to
-the correct location of the network connection profile for the test network and
+the correct location of the network connection profile for the Fabric network and
 the CA certificate.
 
 The driver port can also be changed from this file if needed.
 
-### Running the agent
+## Start the Fabric network and agent
 
-The agent can be run with:
+Please use the example [Fabric
+network](https://github.com/dlt-interoperability/fabric-network) that comes
+complete with chaincode and application. Because the Fabric agent only
+subscribes to new block events, it is important that the Fabric agent is started
+before the Fabric network first deploys and installs its chaincode. Therefore,
+the order in which these components are started matters.
+
+1. Start the Fabric network (in fabric-network)
+
+```
+make start
+```
+
+2. Start the Fabric agent (in commitment-agent)
 
 ```
 ./gradlew run
+```
+
+3. Deploy and invoke the chaincode (in fabric-network)
+
+```
+make deploy-cc
+make invoke-cc
+```
+
+The `invoke-cc` make target starts a Fabric node.js application that submits
+`CreateAsset` transactions every 10 seconds. This can be cancelled with
+`ctrl-c`. The `make invoke-cc` can be used repetitively without needing to
+restart the network.
+
+**Note on restarting the agent**
+If the Fabric network is stopped and started, the user and admin credentials for
+the agent need to be deleted so they can be reissued by the Fabric network CA.
+
+```
+rm wallet/admin.id wallet/agentUser.id
 ```
 
 ### Making queries from the external client
@@ -59,8 +74,13 @@ clone the repo, update path to local Maven repository, and run:
 
 ```
 ./gradlew installDist
-./build/install/external-client/bin/external-client get-proof key1
+./build/install/external-client/bin/external-client get-proof key1 7
 ```
+
+Note that the last argument is the block height that the client wishes to
+retrieve a state and proof for. The requirement to include this block height is
+a temporary workaround while the external client is making a dummy commitment
+instead of getting it from Ethereum.
 
 ### Troubleshooting gRPC
 
@@ -94,33 +114,18 @@ gist](https://gist.github.com/airvin/eabc99a9552a0573afd2dd9a13e75948).
 
 Fabric
 
-- Possibly use a different Fabric test network and version of chaincode. Fabric
-  samples test network is currently being used and it is quite bulky.
 - We will need an agent running for every peer, so FabricClient will need to be
   parameterised.
-- Process the blocks properly
-  - Check if it is a config block
-  - Check if Tx is valid
-  - Convert KVWrite to form that can be used by the RSA accumulator manager
+- Get the history of all blocks from the Fabric peer on the first connection and
+  use that to set the accumulator versions in the DB correctly.
 
 RSA Accumulators
 
 - Add a config file to store path to local Maven repository for the
   `build.gradle` file.
-- Expose function that will be triggered by the Fabric block event listener to
-  update RSA accumulator after every block is received.
 - Update function should trigger the Ethereum publication function every _k_
   blocks (with signature).
-- Decide how Fabric state will be stored. The Kotlin RSA library is creating a
-  nonce for every state added to the accumulator to make it a prime. A map of
-  the state and prime is stored in memory, but we should use persistent storage
-  (either [jankotek/mapdb](https://github.com/jankotek/mapdb),
-  [JetBrains/xodus](https://github.com/JetBrains/xodus) or
-  [JetBrains/Exposed](https://github.com/JetBrains/Exposed)).
-- Expose function to get state based on key.
-- Expose function to create a membership proof for the key.
-- Use Gson (or Moshi) to JSON stringify the KV that is stored in accumulator and
-  is returned in the proof.
+- Function to get state based on key and block height from the peer.
 - Figure out how the RSA accumulator can be initialised deterministically so it
   will be the same across all agents.
 

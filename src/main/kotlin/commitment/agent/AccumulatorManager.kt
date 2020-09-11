@@ -4,21 +4,11 @@ import arrow.core.Either
 import arrow.core.Left
 import arrow.core.flatMap
 import com.google.gson.Gson
-import org.hyperledger.fabric.protos.common.Common
-import org.starcoin.rsa.KVWrite
 import org.starcoin.rsa.RSAAccumulator
-import org.starcoin.rsa.kvWriteToBigInteger
+import org.starcoin.rsa.stringToHashBigInteger
 import proof.ProofOuterClass
 import proof.ProofOuterClass.Proof
 
-data class AccumulatorManager(val accumulator: RSAAccumulator = RSAAccumulator()) {
-
-    // Start - initialise accumulator and store it in the DB
-
-    // Add - add a key and store new accumulator and data map in the DB
-
-    // Delete - delete a key and store new accumulator and data map in the DB
-}
 
 fun initialiseAccumulator(): Either<Error, Unit> = try {
     println("Initialising accumulator")
@@ -26,58 +16,50 @@ fun initialiseAccumulator(): Either<Error, Unit> = try {
     println("Initialising DB")
     val db = MapDb()
     val accumulatorJsonString = Gson().toJson(accumulator, RSAAccumulator::class.java)
-    db.start(accumulatorJsonString)
+    // The first block event that we subscribe to after connecting to the Fabric peer
+    // is block 3, so we need to set the empty accumulator at block height 2.
+    // This is a temporary workaround until we fetch the history of blocks from the
+    // peer on the first connection.
+    val initialBlockHeight = 2
+    db.start(initialBlockHeight, accumulatorJsonString)
 } catch (e: Exception) {
     println("Accumulator Error: Error initialising accumulator: ${e.stackTrace}")
     Left(Error("Accumulator Error: Error initialising accumulator: ${e.message}"))
 }
 
-fun updateAccumulator(block: Common.Block): Either<Error, Unit> = try {
+/**
+ * The update accumulator function receives the list of all KVWrites that were
+ * present in all the valid transactions in the block. It gets the previous version
+ * of the accumulator for the previous block and adds all the KVWrites to it. To do
+ * this the KVWrite is first converted to a JSON string, then to a hash using the
+ * `stringToHashBigInteger` function. The `add` method of the RSA accumulator then
+ * finds a prime representation of this hash by hashing it again together with an
+ * appropriate nonce. The prime representation is used to update the accumulator.
+ * The accumulator stores the original (non-prime) hash together with its nonce in
+ * a `data` map so that the accumulated value (the prime representation) can later
+ * be determined. Finally, the accumulator for the block is stored back in the DB as
+ * a JSON string using the block number as the key.
+ */
+fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Unit> = try {
     val db = MapDb()
-    db.get(block.header.number.toInt()).map {
+    // Get the accumulator for the previous block
+    db.get(blockNum - 1).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
-    }.flatMap {
-        // iterate through KVWrites in the block here.
-        val state1 = KV("key1", "value1")
-        val kv1 = KVWrite(
-                key = "key1",
-                isDelete = false,
-                value = state1.toString().toByteArray()
-        )
-        val key1 = kvWriteToBigInteger(kv1)
-        it.add(key1)
-        val accumulatorJson = Gson().toJson(it, RSAAccumulator::class.java)
-        db.update(block.header.number.toInt(), accumulatorJson)
-    }
-} catch (e: Exception) {
-    println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
-    Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
-}
+    }.flatMap { accumulator ->
+        // Convert each of the KVWrites to a hash and add to the accumulator.
+        // Note that if this is an empty list the accumulator doesn't get updated.
+        val kvHash = kvWrites.map { kvWrite ->
+            val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
+            println("KvWrite to be stored in the accumulator: $jsonString")
+            val kvHash = stringToHashBigInteger(jsonString)
+            println("Hash representation of this KvWrite used as a key in the accumulator: $kvHash")
+            // WARNING: this mutates the accumulator
+            accumulator.add(kvHash)
+        }
 
-fun fakeUpdateAccumulator(blockHeight: Int): Either<Error, Unit> = try {
-    val db = MapDb()
-    db.get(blockHeight-1).map {
-        Gson().fromJson(it, RSAAccumulator::class.java)
-    }.flatMap {
-        val state0 = KV("key0", "value")
-        val kv0 = KVWrite(
-                key = "key0",
-                isDelete = false,
-                value = state0.toString().toByteArray()
-        )
-        val key0 = kvWriteToBigInteger(kv0)
-        it.add(key0)
-
-        val state1 = KV("key1", "value1")
-        val kv1 = KVWrite(
-                key = "key1",
-                isDelete = false,
-                value = state1.toString().toByteArray()
-        )
-        val key1 = kvWriteToBigInteger(kv1)
-        it.add(key1)
-        val accumulatorJson = Gson().toJson(it, RSAAccumulator::class.java)
-        db.update(blockHeight, accumulatorJson)
+        // Convert the accumulator to a JSON string to store back in the DB
+        val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
+        db.update(blockNum, accumulatorJson)
     }
 } catch (e: Exception) {
     println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
@@ -86,23 +68,35 @@ fun fakeUpdateAccumulator(blockHeight: Int): Either<Error, Unit> = try {
 
 fun getState(key: String): String = "not yet implemented"
 
+/**
+ * The createProof is triggered by the gRPC server requestState function which is used
+ * by the external client to get a state and proof of some Fabric ledger state at a particular
+ * block height based on the key it was stored under in the ledger. To be able to create a
+ * proof of membership, the KVWrite that was used in the accumulator needs to be recreated.
+ * The state needs to be fetched from the Fabric ledger, then the hash representation of that
+ * state is used as a key by the accumulator to create the proof.
+ */
 fun createProof(key: String, commitment: ProofOuterClass.Commitment): Either<Error, Proof> {
     val db = MapDb()
     val proof = db.get(commitment.blockHeight).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
     }.flatMap { accumulator ->
-        val state1 = KV("key1", "value1")
-        val kv1 = KVWrite(
-                key = "key1",
+        // TODO: Get the state from the Fabric ledger at the block height
+        // This is a temporary workaround until the Fabric call to get state is done
+        val keyNum = key.substringAfter("key")
+        val kvWrite = KvWrite(
+                key = key,
                 isDelete = false,
-                value = state1.toString().toByteArray()
+                value = "value$keyNum"
         )
-        val key1 = kvWriteToBigInteger(kv1)
+        val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
+        println("KvWrite to find in the accumulator: $kvJson")
+        val kvHash = stringToHashBigInteger(kvJson)
+        println("Hash representation of this KvWrite used as a key in the accumulator: $kvHash")
 
-        accumulator.createProof(key1).map { proof ->
+        accumulator.createProof(kvHash).map { proof ->
             Proof.newBuilder()
-                    // TODO: This should return a JSON string fo the KVWrite
-                    .setState(key1.toString())
+                    .setState(kvJson)
                     .setNonce(proof.nonce.toString())
                     .setProof(proof.proof.toString())
                     .setA(accumulator.a.toString())
@@ -114,4 +108,4 @@ fun createProof(key: String, commitment: ProofOuterClass.Commitment): Either<Err
     return proof
 }
 
-data class KV(val key: String, val value: String)
+data class KvWrite(val key: String, val value: String, val isDelete: Boolean)

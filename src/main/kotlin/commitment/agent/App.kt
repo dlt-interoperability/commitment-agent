@@ -9,8 +9,6 @@ fun main(args: Array<String>) {
 
     // Initialise the accumulator
     initialiseAccumulator()
-    // Make a fake update
-    fakeUpdateAccumulator(1)
 
     // Start the Fabric client
     GlobalScope.launch {
