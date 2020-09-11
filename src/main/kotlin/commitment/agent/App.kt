@@ -6,10 +6,6 @@ import java.io.FileInputStream
 import java.util.*
 
 fun main(args: Array<String>) {
-
-    // Initialise the accumulator
-    initialiseAccumulator()
-
     // Start the Fabric client
     GlobalScope.launch {
         val fabricClient = FabricClient()

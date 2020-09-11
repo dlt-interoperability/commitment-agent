@@ -2,30 +2,13 @@ package commitment.agent
 
 import arrow.core.Either
 import arrow.core.Left
+import arrow.core.Right
 import arrow.core.flatMap
 import com.google.gson.Gson
 import org.starcoin.rsa.RSAAccumulator
 import org.starcoin.rsa.stringToHashBigInteger
 import proof.ProofOuterClass
 import proof.ProofOuterClass.Proof
-
-
-fun initialiseAccumulator(): Either<Error, Unit> = try {
-    println("Initialising accumulator")
-    val accumulator = RSAAccumulator()
-    println("Initialising DB")
-    val db = MapDb()
-    val accumulatorJsonString = Gson().toJson(accumulator, RSAAccumulator::class.java)
-    // The first block event that we subscribe to after connecting to the Fabric peer
-    // is block 3, so we need to set the empty accumulator at block height 2.
-    // This is a temporary workaround until we fetch the history of blocks from the
-    // peer on the first connection.
-    val initialBlockHeight = 2
-    db.start(initialBlockHeight, accumulatorJsonString)
-} catch (e: Exception) {
-    println("Accumulator Error: Error initialising accumulator: ${e.stackTrace}")
-    Left(Error("Accumulator Error: Error initialising accumulator: ${e.message}"))
-}
 
 /**
  * The update accumulator function receives the list of all KVWrites that were
@@ -41,11 +24,19 @@ fun initialiseAccumulator(): Either<Error, Unit> = try {
  * a JSON string using the block number as the key.
  */
 fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Unit> = try {
+    println("Updating accumulator for blockNum: $blockNum")
     val db = MapDb()
-    // Get the accumulator for the previous block
-    db.get(blockNum - 1).map {
-        Gson().fromJson(it, RSAAccumulator::class.java)
-    }.flatMap { accumulator ->
+
+    val eeAccumulator = if (blockNum == 2) {
+        // If this is the first block we need to initialise the accumulator
+        Right(RSAAccumulator())
+    } else {
+        // Otherwise get the accumulator for the previous block from the DB
+        db.get(blockNum - 1).map {
+            Gson().fromJson(it, RSAAccumulator::class.java)
+        }
+    }
+    eeAccumulator.flatMap { accumulator ->
         // Convert each of the KVWrites to a hash and add to the accumulator.
         // Note that if this is an empty list the accumulator doesn't get updated.
         val kvHash = kvWrites.map { kvWrite ->
@@ -59,7 +50,11 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Uni
 
         // Convert the accumulator to a JSON string to store back in the DB
         val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
-        db.update(blockNum, accumulatorJson)
+        if (blockNum == 2) {
+            db.start(blockNum, accumulatorJson)
+        } else {
+            db.update(blockNum, accumulatorJson)
+        }
     }
 } catch (e: Exception) {
     println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")

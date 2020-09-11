@@ -30,11 +30,8 @@ class FabricClient() {
             val gateway = connect()
                 println("Connected!")
             val network = gateway.getNetwork("mychannel")
-            // TODO: we need a complete history of all blocks so we need to fetch
-            // all previous blocks from the peer here.
-
-            // Start listener for block events
-            network.addBlockListener { handleBlockEvent(it) }
+            // Get all blocks from block 2 onwards and start listening for new block events
+            network.addBlockListener(2, ::handleBlockEvent)
         } catch (e: ContractException) {
             e.printStackTrace()
         } catch (e: InterruptedException) {

@@ -25,41 +25,31 @@ the CA certificate.
 
 The driver port can also be changed from this file if needed.
 
-## Start the Fabric network and agent
+### Start the Fabric network
 
 Please use the example [Fabric
 network](https://github.com/dlt-interoperability/fabric-network) that comes
-complete with chaincode and application. Because the Fabric agent only
-subscribes to new block events, it is important that the Fabric agent is started
-before the Fabric network first deploys and installs its chaincode. Therefore,
-the order in which these components are started matters.
-
-1. Start the Fabric network (in fabric-network)
+complete with chaincode and application. Start the Fabric network and deploy and
+invoke the chaincode with:
 
 ```
 make start
-```
-
-2. Start the Fabric agent (in commitment-agent)
-
-```
-./gradlew run
-```
-
-3. Deploy and invoke the chaincode (in fabric-network)
-
-```
 make deploy-cc
 make invoke-cc
 ```
 
 The `invoke-cc` make target starts a Fabric node.js application that submits
 `CreateAsset` transactions every 10 seconds. This can be cancelled with
-`ctrl-c`. The `make invoke-cc` can be used repetitively without needing to
+`ctrl-c`. The `make invoke-cc` can be used repeatedly without needing to
 restart the network.
 
-**Note on restarting the agent**
-If the Fabric network is stopped and started, the user and admin credentials for
+## Start the Fabric agent
+
+```
+./gradlew run
+```
+
+**Note on restarting the agent**: If the Fabric network is stopped and started, the user and admin credentials for
 the agent need to be deleted so they can be reissued by the Fabric network CA.
 
 ```
@@ -116,8 +106,6 @@ Fabric
 
 - We will need an agent running for every peer, so FabricClient will need to be
   parameterised.
-- Get the history of all blocks from the Fabric peer on the first connection and
-  use that to set the accumulator versions in the DB correctly.
 
 RSA Accumulators
 
