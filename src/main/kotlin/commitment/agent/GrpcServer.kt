@@ -1,9 +1,7 @@
 package commitment.agent
 
-import arrow.core.Either
 import io.grpc.Server
 import io.grpc.ServerBuilder
-import org.starcoin.rsa.RSAAccumulator
 import proof.AgentGrpcKt
 import proof.ProofOuterClass
 

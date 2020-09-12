@@ -1,10 +1,9 @@
 package commitment.agent
 
-import arrow.core.Either
-import arrow.core.extensions.either.applicative.applicative
-import arrow.core.extensions.list.traverse.traverse
-import arrow.core.identity
+import arrow.core.*
+import com.google.gson.Gson
 import org.hyperledger.fabric.gateway.*
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage
 import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
 import org.hyperledger.fabric.sdk.User
@@ -18,142 +17,162 @@ import java.security.PrivateKey
 import java.util.*
 
 class FabricClient() {
+    var gateway: Option<Gateway> = None
+    var network: Option<Network> = None
+    var contract: Option<Contract> = None
 
-    fun start() {
+    init {
         // First enroll an admin and user
         enrollAdmin()
         registerUser()
-
         println("Attempting to connect to Fabric network")
         // Create a gateway connection
         try {
-            val gateway = connect()
-                println("Connected!")
-            val network = gateway.getNetwork("mychannel")
-            // Get all blocks from block 2 onwards and start listening for new block events
-            network.addBlockListener(2, ::handleBlockEvent)
-        } catch (e: ContractException) {
-            e.printStackTrace()
-        } catch (e: InterruptedException) {
-            e.printStackTrace()
+            gateway = Some(connect())
+            println("Connected!")
+            network = gateway.map { it.getNetwork("mychannel") }
+            contract = network.map { it.getContract("basic")}
+        } catch (e: Exception) {
+            println("Fabric Error: Error creating network connection: ${e.stackTrace}")
         }
     }
-}
 
-fun createCaClient(): HFCAClient {
-    val config = Properties()
-    FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
-            .use { config.load(it) }
-    val props = Properties()
-    props["pemFile"] = config["CA_PEM_PATH"]
-    props["allowAllHostNames"] = "true"
-    val caClient = HFCAClient.createNewInstance("https://localhost:7054", props)
-    val cryptoSuite = CryptoSuiteFactory.getDefault().cryptoSuite
-    caClient.cryptoSuite = cryptoSuite
-    return caClient
-}
-
-fun enrollAdmin() {
-    val caClient = createCaClient()
-    // Create a wallet for managing identities
-    val wallet = Wallets.newFileSystemWallet(Paths.get("wallet"))
-
-    // Check to see if we've already enrolled the admin user.
-    if (wallet["admin"] != null) {
-        println("An identity for the admin user \"admin\" already exists in the wallet")
-        return
-    } else {
-        val enrollmentRequestTLS = EnrollmentRequest()
-        enrollmentRequestTLS.addHost("localhost")
-        enrollmentRequestTLS.profile = "tls"
-        val enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS)
-        val user: Identity = Identities.newX509Identity("Org1MSP", enrollment)
-        wallet.put("admin", user)
-        println("Successfully enrolled user \"admin\" and imported it into the wallet")
-    }
-}
-
-fun registerUser() {
-    val caClient = createCaClient()
-    // Create a wallet for managing identities
-    val wallet = Wallets.newFileSystemWallet(Paths.get("wallet"))
-
-    // Check to see if we've already enrolled the user.
-    if (wallet["agentUser"] != null) {
-        println("An identity for the user \"agentUser\" already exists in the wallet")
-        return
+    fun start() = try {
+        // Get all blocks from block 2 onwards and start listening for new block events
+        this.network.map { it. addBlockListener(2, ::handleBlockEvent) }
+    } catch (e: Exception) {
+        println("Fabric Error: Error creating block listener: ${e.stackTrace}")
     }
 
-    val adminIdentity = wallet["admin"] as X509Identity
-    if (adminIdentity == null) {
-        println("\"admin\" needs to be enrolled and added to the wallet first")
-        return
+    fun getState(key: String): Either<Error, String> = try {
+        contract.fold({
+            println("Fabric Error: Error getting contract")
+            Left(Error("Fabric Error: Error getting contract"))
+        }, {
+            val result = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
+            println("Result: $result")
+            Right("Result")
+        })
+    } catch (e: Exception) {
+        println("Fabric Error: Error getting state $key: ${e.message}")
+        Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
     }
-    val admin: User = object : User {
-        override fun getName(): String {
-            return "admin"
+
+    fun createCaClient(): HFCAClient {
+        val config = Properties()
+        FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
+                .use { config.load(it) }
+        val props = Properties()
+        props["pemFile"] = config["CA_PEM_PATH"]
+        props["allowAllHostNames"] = "true"
+        val caClient = HFCAClient.createNewInstance("https://localhost:7054", props)
+        val cryptoSuite = CryptoSuiteFactory.getDefault().cryptoSuite
+        caClient.cryptoSuite = cryptoSuite
+        return caClient
+    }
+
+    fun enrollAdmin() {
+        val caClient = createCaClient()
+        // Create a wallet for managing identities
+        val wallet = Wallets.newFileSystemWallet(Paths.get("wallet"))
+
+        // Check to see if we've already enrolled the admin user.
+        if (wallet["admin"] != null) {
+            println("An identity for the admin user \"admin\" already exists in the wallet")
+            return
+        } else {
+            val enrollmentRequestTLS = EnrollmentRequest()
+            enrollmentRequestTLS.addHost("localhost")
+            enrollmentRequestTLS.profile = "tls"
+            val enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS)
+            val user: Identity = Identities.newX509Identity("Org1MSP", enrollment)
+            wallet.put("admin", user)
+            println("Successfully enrolled user \"admin\" and imported it into the wallet")
+        }
+    }
+
+    fun registerUser() {
+        val caClient = createCaClient()
+        // Create a wallet for managing identities
+        val wallet = Wallets.newFileSystemWallet(Paths.get("wallet"))
+
+        // Check to see if we've already enrolled the user.
+        if (wallet["agentUser"] != null) {
+            println("An identity for the user \"agentUser\" already exists in the wallet")
+            return
         }
 
-        override fun getRoles(): Set<String> {
-            return setOf()
+        val adminIdentity = wallet["admin"] as X509Identity
+        if (adminIdentity == null) {
+            println("\"admin\" needs to be enrolled and added to the wallet first")
+            return
         }
+        val admin: User = object : User {
+            override fun getName(): String {
+                return "admin"
+            }
 
-        override fun getAccount(): String {
-            return ""
-        }
+            override fun getRoles(): Set<String> {
+                return setOf()
+            }
 
-        override fun getAffiliation(): String {
-            return "org1.department1"
-        }
+            override fun getAccount(): String {
+                return ""
+            }
 
-        override fun getEnrollment(): Enrollment {
-            return object : Enrollment {
-                override fun getKey(): PrivateKey {
-                    return adminIdentity.privateKey
+            override fun getAffiliation(): String {
+                return "org1.department1"
+            }
+
+            override fun getEnrollment(): Enrollment {
+                return object : Enrollment {
+                    override fun getKey(): PrivateKey {
+                        return adminIdentity.privateKey
+                    }
+
+                    override fun getCert(): String {
+                        return Identities.toPemString(adminIdentity.certificate)
+                    }
                 }
+            }
 
-                override fun getCert(): String {
-                    return Identities.toPemString(adminIdentity.certificate)
-                }
+            override fun getMspId(): String {
+                return "Org1MSP"
             }
         }
 
-        override fun getMspId(): String {
-            return "Org1MSP"
-        }
+        // Register the user, enroll the user, and import the new identity into the wallet.
+        val registrationRequest = RegistrationRequest("agentUser")
+        // TODO: parameterise the affiliation
+        registrationRequest.affiliation = "org1.department1"
+        registrationRequest.enrollmentID = "agentUser"
+        val enrollmentSecret = caClient.register(registrationRequest, admin)
+        val enrollment = caClient.enroll("agentUser", enrollmentSecret)
+        // TODO: parameterise the MSP name
+        val user: Identity = Identities.newX509Identity("Org1MSP", enrollment)
+        wallet.put("agentUser", user)
+        println("Successfully enrolled user \"agentUser\" and imported it into the wallet")
     }
 
-    // Register the user, enroll the user, and import the new identity into the wallet.
-    val registrationRequest = RegistrationRequest("agentUser")
-    // TODO: parameterise the affiliation
-    registrationRequest.affiliation = "org1.department1"
-    registrationRequest.enrollmentID = "agentUser"
-    val enrollmentSecret = caClient.register(registrationRequest, admin)
-    val enrollment = caClient.enroll("agentUser", enrollmentSecret)
-    // TODO: parameterise the MSP name
-    val user: Identity = Identities.newX509Identity("Org1MSP", enrollment)
-    wallet.put("agentUser", user)
-    println("Successfully enrolled user \"agentUser\" and imported it into the wallet")
-}
+    // Helper function for connecting to the gateway
+    fun connect(): Gateway {
+        // Load a file system based wallet for managing identities.
+        val walletPath = Paths.get("wallet")
+        val wallet = Wallets.newFileSystemWallet(walletPath)
 
-// Helper function for connecting to the gateway
-fun connect(): Gateway {
-    // Load a file system based wallet for managing identities.
-    val walletPath = Paths.get("wallet")
-    val wallet = Wallets.newFileSystemWallet(walletPath)
+        // Path to a common connection profile describing the network.
+        val properties = Properties()
+        FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
+                .use { properties.load(it) }
+        val networkConfigFile = Paths.get(properties["NETWORK_CONFIG_PATH"] as String)
 
-    // Path to a common connection profile describing the network.
-    val properties = Properties()
-    FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
-            .use { properties.load(it) }
-    val networkConfigFile = Paths.get(properties["NETWORK_CONFIG_PATH"] as String)
-
-    // Configure the gateway connection used to access the network.
-    val builder = Gateway.createBuilder()
-            .identity(wallet, "agentUser")
-            .networkConfig(networkConfigFile)
-            .discovery(true)
-    return builder.connect()
+        // Configure the gateway connection used to access the network.
+        val builder = Gateway.createBuilder()
+                .identity(wallet, "agentUser")
+                .networkConfig(networkConfigFile)
+                .discovery(true)
+        return builder.connect()
+    }
 }
 
 /**
@@ -166,13 +185,14 @@ fun connect(): Gateway {
  */
 fun handleBlockEvent(blockEvent: BlockEvent) {
     val blockNum = blockEvent.blockNumber.toInt()
+    println("Processing block $blockNum")
     val kvWrites = blockEvent.transactionEvents
             // Filter the valid transactions
             .filter { it.isValid }
             // Get the set of KVWrites across all transactions
-            .flatMap { transactionEvent ->
-                transactionEvent.transactionActionInfos.flatMap { transactionActionInfo ->
-                    transactionActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
+            .flatMap { txEvent ->
+                txEvent.transactionActionInfos.flatMap { txActionInfo ->
+                    txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                         nsRwsetInfo.rwset.writesList.map { kvWrite ->
                             println("kvWrite: $kvWrite")
                             KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)

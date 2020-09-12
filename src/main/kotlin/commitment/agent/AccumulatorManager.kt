@@ -71,12 +71,20 @@ fun getState(key: String): String = "not yet implemented"
  * The state needs to be fetched from the Fabric ledger, then the hash representation of that
  * state is used as a key by the accumulator to create the proof.
  */
-fun createProof(key: String, commitment: ProofOuterClass.Commitment): Either<Error, Proof> {
+fun createProof(
+        key: String,
+        commitment: ProofOuterClass.Commitment
+): Either<Error, Proof> {
     val db = MapDb()
     val proof = db.get(commitment.blockHeight).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
     }.flatMap { accumulator ->
-        // TODO: Get the state from the Fabric ledger at the block height
+        // Get the state from the Fabric ledger
+        // TODO: Get key by history to get the state at the right block height
+        // Also need to use this value
+        val fabricClient = FabricClient()
+        val result = fabricClient.getState(key)
+        println("Result from Fabric ledger: $result")
         // This is a temporary workaround until the Fabric call to get state is done
         val keyNum = key.substringAfter("key")
         val kvWrite = KvWrite(
