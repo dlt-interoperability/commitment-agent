@@ -2,6 +2,7 @@ package commitment.agent
 
 import arrow.core.*
 import com.google.gson.Gson
+import com.sun.org.apache.xpath.internal.operations.Bool
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.protos.peer.ProposalResponsePackage
 import org.hyperledger.fabric.sdk.BlockEvent
@@ -57,7 +58,22 @@ class FabricClient() {
         println("Fabric Error: Error getting state $key: ${e.message}")
         Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
     }
-    
+
+    fun getStateHistory(key: String): Either<Error, List<KeyModification>> = try {
+        contract.fold({
+            println("Fabric Error: Error getting contract")
+            Left(Error("Fabric Error: Error getting contract"))
+        }, {
+            val resultJSON = it.evaluateTransaction("GetHistoryForKey", key).toString(Charsets.UTF_8)
+            val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
+            Right(result)
+        })
+    } catch(e: Exception) {
+        println("Fabric Error: Error getting state history for key $key: ${e.message}")
+        Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
+    }
+
+
     fun createCaClient(): HFCAClient {
         val config = Properties()
         FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
@@ -205,3 +221,5 @@ fun handleBlockEvent(blockEvent: BlockEvent) {
 }
 
 data class GetStateResult(val type: String, val data: ByteArray)
+data class KeyModification(val timestamp: Timestamp, val value: String, val txId: String, val isDelete: Boolean)
+data class Timestamp(val seconds: String, val nanos: Int)

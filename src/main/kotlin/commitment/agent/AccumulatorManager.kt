@@ -79,8 +79,14 @@ fun createProof(
     val proof = db.get(commitment.blockHeight).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
     }.flatMap { accumulator ->
-        // TODO: Get key by history to get the state at the right block height
         val fabricClient = FabricClient()
+        // TODO: Need to somehow relate this history with block height
+        fabricClient.getStateHistory(key).map { history ->
+            history.map {
+                println("Key modification: $it")
+            }
+        }
+        // TODO: Until getting state at a block height is figured out, just assume the latest value is the required one.
         fabricClient.getState(key).flatMap { value ->
             // Recreate the kvWrite that was used in the accumulator
             val kvWrite = KvWrite(
