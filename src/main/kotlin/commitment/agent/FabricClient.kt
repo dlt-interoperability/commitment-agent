@@ -49,15 +49,15 @@ class FabricClient() {
             println("Fabric Error: Error getting contract")
             Left(Error("Fabric Error: Error getting contract"))
         }, {
-            val result = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
-            println("Result: $result")
-            Right("Result")
+            val resultJSON = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
+            val result = Gson().fromJson(resultJSON, GetStateResult::class.java)
+            Right(result.data.toString(Charsets.UTF_8))
         })
     } catch (e: Exception) {
         println("Fabric Error: Error getting state $key: ${e.message}")
         Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
     }
-
+    
     fun createCaClient(): HFCAClient {
         val config = Properties()
         FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
@@ -203,3 +203,5 @@ fun handleBlockEvent(blockEvent: BlockEvent) {
     // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
     updateAccumulator(blockNum, kvWrites)
 }
+
+data class GetStateResult(val type: String, val data: ByteArray)

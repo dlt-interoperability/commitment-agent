@@ -79,32 +79,26 @@ fun createProof(
     val proof = db.get(commitment.blockHeight).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
     }.flatMap { accumulator ->
-        // Get the state from the Fabric ledger
         // TODO: Get key by history to get the state at the right block height
-        // Also need to use this value
         val fabricClient = FabricClient()
-        val result = fabricClient.getState(key)
-        println("Result from Fabric ledger: $result")
-        // This is a temporary workaround until the Fabric call to get state is done
-        val keyNum = key.substringAfter("key")
-        val kvWrite = KvWrite(
-                key = key,
-                isDelete = false,
-                value = "value$keyNum"
-        )
-        val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
-        println("KvWrite to find in the accumulator: $kvJson")
-        val kvHash = stringToHashBigInteger(kvJson)
-        println("Hash representation of this KvWrite used as a key in the accumulator: $kvHash")
-
-        accumulator.createProof(kvHash).map { proof ->
-            Proof.newBuilder()
-                    .setState(kvJson)
-                    .setNonce(proof.nonce.toString())
-                    .setProof(proof.proof.toString())
-                    .setA(accumulator.a.toString())
-                    .setN(proof.n.toString())
-                    .build()
+        fabricClient.getState(key).flatMap { value ->
+            // Recreate the kvWrite that was used in the accumulator
+            val kvWrite = KvWrite(
+                    key = key,
+                    isDelete = false,
+                    value = value
+            )
+            val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
+            val kvHash = stringToHashBigInteger(kvJson)
+            accumulator.createProof(kvHash).map { proof ->
+                Proof.newBuilder()
+                        .setState(kvJson)
+                        .setNonce(proof.nonce.toString())
+                        .setProof(proof.proof.toString())
+                        .setA(accumulator.a.toString())
+                        .setN(proof.n.toString())
+                        .build()
+            }
         }
     }
     println("Created proof: $proof\n")
