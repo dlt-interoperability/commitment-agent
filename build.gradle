@@ -12,10 +12,22 @@ plugins {
     id 'application'
     id 'idea'
     id 'com.google.protobuf' version '0.8.12'
+    // The Web3J plugin is not compatible with Gradle 6 because of this issue:
+    // https://github.com/web3j/web3j-gradle-plugin/issues/31
+    id 'org.web3j' version '4.5.11'
+}
+
+configurations.all { configuration ->
+    // Workaround for dependency configuration issue:
+    // https://github.com/google/protobuf-gradle-plugin/issues/391
+    if (name.contains('Proto')) {
+        attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.class, Usage.JAVA_RUNTIME))
+    }
 }
 
 repositories {
     jcenter()
+    mavenCentral()
     // Local Maven repository
     maven {
         url 'file://Users/allirvin/.m2/repository'
@@ -48,6 +60,8 @@ dependencies {
 
     // Library for JSON serialisation and deserialisation
     implementation 'com.google.code.gson:gson:2.8.6'
+
+    implementation "org.web3j:core:4.6.3"
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
@@ -87,3 +101,13 @@ protobuf {
         }
     }
 }
+
+ web3j {
+     generatedPackageName = 'commitment.agent.contracts.generated'
+     excludedContracts = ['Migration', 'StringUtils']
+ }
+
+ solidity {
+     executable = "solc"
+     version = "0.7.1"
+ }

@@ -25,6 +25,14 @@ the CA certificate.
 
 The driver port can also be changed from this file if needed.
 
+### Clone the bulletin board repo
+
+This project copies the solidity smart contracts defined in the [bulletin
+board](https://github.com/dlt-interoperability/bulletin-board) repo and
+generates Java wrapper files from them. Ensure the bulletin board project is
+present at the same level as the directory structure as the commitment-agent
+project.
+
 ### Start the Fabric network
 
 Please use the example [Fabric
