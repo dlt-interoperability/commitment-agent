@@ -10,3 +10,6 @@ wallet/*
 
 # DB
 file.db
+
+# Ignore solidity contracts as these are copied from the bulletin-board repo
+src/main/solidity/*

@@ -54,14 +54,15 @@ restart the network.
 ## Start the Fabric agent
 
 ```
-./gradlew run
+make start
 ```
 
-**Note on restarting the agent**: If the Fabric network is stopped and started, the user and admin credentials for
-the agent need to be deleted so they can be reissued by the Fabric network CA.
+**Note on restarting the agent**: If the Fabric network is stopped and started,
+the user and admin credentials for the agent need to be deleted so they can be
+reissued by the Fabric network CA. This can be done with:
 
 ```
-rm wallet/admin.id wallet/agentUser.id
+make stop
 ```
 
 ### Making queries from the external client
@@ -127,5 +128,9 @@ RSA Accumulators
 
 Ethereum Client
 
-- Import Web3J.
 - Implement functions in the smart contract interface to publish accumulator.
+- Find a different way to build the Java wrappers for the contracts because
+  [Gradle 6 is not compatible with the web3j Gradle
+  plugin](https://github.com/web3j/web3j-gradle-plugin/issues/31). Either use
+  the [web3j Maven plugin](https://github.com/web3j/web3j-maven-plugin) or write
+  a script to [use truffle via the command line](https://www.baeldung.com/web3j).

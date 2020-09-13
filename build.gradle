@@ -73,6 +73,23 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
     }
 }
 
+// This is a workaround to the issue where compileSolidity comes before compileKotlin
+// https://github.com/web3j/web3j-gradle-plugin/issues/24
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+    dependsOn 'generateContractWrappers'
+}
+
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+    dependsOn 'generateTestContractWrappers'
+}
+
+sourceSets {
+    main.kotlin.srcDirs += "${web3j.generatedFilesBaseDir}/main/java"
+    test.kotlin.srcDirs += "${web3j.generatedFilesBaseDir}/test/java"
+}
+
 application {
     // Define the main class for the application.
     mainClassName = 'commitment.agent.AppKt'
