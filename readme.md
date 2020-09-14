@@ -6,16 +6,25 @@ published to a public bulletin board, the Ethereum mainnet. The agent can be
 queried by an external agent to retrieve state and a proof of membership of that
 state in the accumulator.
 
+This project has two modules:
+
+1. The Fabric client is a process that subscribes to block events coming from the Fabric
+   peer. It also maintains the accumulator and runs a gRPC server for the
+   external client to make requests to.
+2. The Ethereum client runs as a separate process and connects to the Ethereum
+   network to publish commitments. It runs a gRPC server to receive commitments
+   from the Fabric process.
+
 ## Prerequisites
 
 ### Build the RSA accumulator library and publish to MavenLocal
 
-The external client uses the
+The commitment agent uses the
 [rsa-accumulator-kotlin](https://github.com/dlt-interoperability/rsa-accumulator-kotlin)
-library to verify membership proofs provided by the Fabric agent. This
-repository needs to be cloned, built, and published to a local Maven repository.
-Follow instructions in the repo to do this.
-**Change line 21 in the `build.gradle` to point to your local Maven repository directory.**
+library to maintain an RSA accumulator of the entire state of the Fabric ledger.
+This repository needs to be cloned, built, and published to a local Maven
+repository. Follow instructions in the repo to do this. **Change line 21 in the
+`build.gradle` to point to your local Maven repository directory.**
 
 ### Update the config properties
 
@@ -24,6 +33,14 @@ the correct location of the network connection profile for the Fabric network an
 the CA certificate.
 
 The driver port can also be changed from this file if needed.
+
+### Clone the bulletin board repo
+
+This project copies the solidity smart contracts defined in the [bulletin
+board](https://github.com/dlt-interoperability/bulletin-board) repo and
+generates Java wrapper files from them. Ensure the bulletin board project is
+present at the same level as the directory structure as the commitment-agent
+project.
 
 ### Start the Fabric network
 
@@ -45,15 +62,19 @@ restart the network.
 
 ## Start the Fabric agent
 
-```
-./gradlew run
-```
-
-**Note on restarting the agent**: If the Fabric network is stopped and started, the user and admin credentials for
-the agent need to be deleted so they can be reissued by the Fabric network CA.
+In two separate terminal panes, run:
 
 ```
-rm wallet/admin.id wallet/agentUser.id
+make start-fabric
+make start-ethereum
+```
+
+**Note on restarting the agent**: If the Fabric network is stopped and started,
+the user and admin credentials for the agent need to be deleted so they can be
+reissued by the Fabric network CA. This can be done with:
+
+```
+make clean
 ```
 
 ### Making queries from the external client
@@ -119,5 +140,4 @@ RSA Accumulators
 
 Ethereum Client
 
-- Import Web3J.
 - Implement functions in the smart contract interface to publish accumulator.

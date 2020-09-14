@@ -8,3 +8,5 @@
  */
 
 rootProject.name = 'commitment-agent'
+include 'ethereum-client'
+include 'fabric-client'
