@@ -8,6 +8,7 @@ import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.http.HttpService
+import org.web3j.tx.gas.StaticGasProvider
 import java.math.BigInteger
 
 class EthereumClient() {
@@ -41,9 +42,8 @@ class EthereumClient() {
     }
 
     fun deployLedgerContract(): Either<Error, String> = try {
-        val ledgerContractGasProvider = LedgerContractGasProvider()
-        println("Gas price: ${ledgerContractGasProvider.gasPrice}")
-        println("Gas limit: ${ledgerContractGasProvider.gasLimit}")
+        val ledgerContractGasProvider = StaticGasProvider(BigInteger.valueOf(20000000000),BigInteger.valueOf(6721975))
+
         val ledgerContractAddress = LedgerState
                 .deploy(web3j, credentials, ledgerContractGasProvider)
                 .sendAsync()
@@ -57,9 +57,8 @@ class EthereumClient() {
     }
 
     fun deployManagementCommitteeContract(): Either<Error, String> = try {
-        val managementCommitteeContractGasProvider = LedgerContractGasProvider()
-        println("Gas price: ${managementCommitteeContractGasProvider.gasPrice}")
-        println("Gas limit: ${managementCommitteeContractGasProvider.gasLimit}")
+        val managementCommitteeContractGasProvider = StaticGasProvider(BigInteger.valueOf(20000000000),BigInteger.valueOf(6721975))
+
         val managementCommitteeContractAddress = LedgerState
                 .deploy(web3j, credentials, managementCommitteeContractGasProvider)
                 .sendAsync()
