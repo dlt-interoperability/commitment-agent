@@ -1,4 +1,4 @@
-package commitment.agent
+package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
@@ -32,7 +32,7 @@ class FabricClient() {
             network = gateway.map { it.getNetwork("mychannel") }
             contract = network.map { it.getContract("basic")}
         } catch (e: Exception) {
-            println("Fabric Error: Error creating network connection: ${e.stackTrace}")
+            println("Fabric Error: Error creating network connection: ${e.message}")
         }
     }
 
@@ -71,10 +71,9 @@ class FabricClient() {
         Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
     }
 
-
     fun createCaClient(): HFCAClient {
         val config = Properties()
-        FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
+        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
                 .use { config.load(it) }
         val props = Properties()
         props["pemFile"] = config["CA_PEM_PATH"]
@@ -176,7 +175,7 @@ class FabricClient() {
 
         // Path to a common connection profile describing the network.
         val properties = Properties()
-        FileInputStream("${System.getProperty("user.dir")}/src/main/resources/config.properties")
+        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
                 .use { properties.load(it) }
         val networkConfigFile = Paths.get(properties["NETWORK_CONFIG_PATH"] as String)
 

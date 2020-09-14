@@ -1,4 +1,4 @@
-package commitment.agent
+package commitment.agent.ethereum.client
 
 import arrow.core.Either
 import arrow.core.Left
@@ -40,7 +40,6 @@ class EthereumClient() {
         Left(Error("Ethereum Error: Error deploying ledger contract${e.message}"))
     }
 
-    // This produces an error: Error processing transaction request: Exceeds block gas limit
     fun deployLedgerContract(): Either<Error, String> = try {
         val ledgerContractGasProvider = LedgerContractGasProvider()
         println("Gas price: ${ledgerContractGasProvider.gasPrice}")

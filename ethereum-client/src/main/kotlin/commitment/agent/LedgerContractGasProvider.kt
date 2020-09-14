@@ -1,9 +1,9 @@
-package commitment.agent
+package commitment.agent.ethereum.client
 
 import org.web3j.tx.gas.ContractGasProvider
 import java.math.BigInteger
 
-class ManagementCommiteeContractGasProvider : ContractGasProvider {
+class LedgerContractGasProvider: ContractGasProvider {
     override fun getGasPrice(contractFunc: String): BigInteger = BigInteger.valueOf(20000000000)
 
     override fun getGasLimit(contractFunc: String): BigInteger = BigInteger.valueOf(6721975)

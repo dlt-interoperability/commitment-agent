@@ -6,16 +6,25 @@ published to a public bulletin board, the Ethereum mainnet. The agent can be
 queried by an external agent to retrieve state and a proof of membership of that
 state in the accumulator.
 
+This project has two modules:
+
+1. The Fabric client is a process that subscribes to block events coming from the Fabric
+   peer. It also maintains the accumulator and runs a gRPC server for the
+   external client to make requests to.
+2. The Ethereum client runs as a separate process and connects to the Ethereum
+   network to publish commitments. It runs a gRPC server to receive commitments
+   from the Fabric process.
+
 ## Prerequisites
 
 ### Build the RSA accumulator library and publish to MavenLocal
 
-The external client uses the
+The commitment agent uses the
 [rsa-accumulator-kotlin](https://github.com/dlt-interoperability/rsa-accumulator-kotlin)
-library to verify membership proofs provided by the Fabric agent. This
-repository needs to be cloned, built, and published to a local Maven repository.
-Follow instructions in the repo to do this.
-**Change line 21 in the `build.gradle` to point to your local Maven repository directory.**
+library to maintain an RSA accumulator of the entire state of the Fabric ledger.
+This repository needs to be cloned, built, and published to a local Maven
+repository. Follow instructions in the repo to do this. **Change line 21 in the
+`build.gradle` to point to your local Maven repository directory.**
 
 ### Update the config properties
 
@@ -53,8 +62,11 @@ restart the network.
 
 ## Start the Fabric agent
 
+In two separate terminal panes, run:
+
 ```
-make start
+make start-fabric
+make start-ethereum
 ```
 
 **Note on restarting the agent**: If the Fabric network is stopped and started,
@@ -129,8 +141,3 @@ RSA Accumulators
 Ethereum Client
 
 - Implement functions in the smart contract interface to publish accumulator.
-- Find a different way to build the Java wrappers for the contracts because
-  [Gradle 6 is not compatible with the web3j Gradle
-  plugin](https://github.com/web3j/web3j-gradle-plugin/issues/31). Either use
-  the [web3j Maven plugin](https://github.com/web3j/web3j-maven-plugin) or write
-  a script to [use truffle via the command line](https://www.baeldung.com/web3j).

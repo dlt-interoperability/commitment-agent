@@ -1,4 +1,4 @@
-package commitment.agent
+package commitment.agent.fabric.client
 
 import io.grpc.Server
 import io.grpc.ServerBuilder

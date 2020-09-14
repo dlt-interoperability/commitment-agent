@@ -1,4 +1,5 @@
-package commitment.agent
+package commitment.agent.fabric.client
+
 import arrow.core.Either
 import arrow.core.Left
 import arrow.core.Right
