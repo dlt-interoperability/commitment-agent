@@ -83,6 +83,7 @@ compileTestKotlin {
 sourceSets {
     main.kotlin.srcDirs += "${web3j.generatedFilesBaseDir}/main/java"
     test.kotlin.srcDirs += "${web3j.generatedFilesBaseDir}/test/java"
+    main.proto.srcDirs += "../proto"
 }
 
 application {

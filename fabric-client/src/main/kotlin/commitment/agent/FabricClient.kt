@@ -2,6 +2,12 @@ package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
+import commitment.CommitmentOuterClass
+import io.grpc.ManagedChannelBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
@@ -38,7 +44,7 @@ class FabricClient() {
 
     fun start() = try {
         // Get all blocks from block 2 onwards and start listening for new block events
-        this.network.map { it. addBlockListener(2, ::handleBlockEvent) }
+        this.network.map { it.addBlockListener(2, ::handleBlockEvent) }
     } catch (e: Exception) {
         println("Fabric Error: Error creating block listener: ${e.stackTrace}")
     }
@@ -207,14 +213,16 @@ fun handleBlockEvent(blockEvent: BlockEvent) {
                 txEvent.transactionActionInfos.flatMap { txActionInfo ->
                     txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                         nsRwsetInfo.rwset.writesList.map { kvWrite ->
-                            println("kvWrite: $kvWrite")
                             KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                         }
                     }
                 }
             }
     // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-    updateAccumulator(blockNum, kvWrites)
+    updateAccumulator(blockNum, kvWrites).flatMap { accumulator ->
+        // Then send the accumulator to the Ethereum client for publishing
+        sendCommitmentHelper(accumulator, blockNum)
+    }
 }
 
 data class GetStateResult(val type: String, val data: ByteArray)
