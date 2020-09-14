@@ -1,7 +1,5 @@
 package commitment.agent
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import java.io.FileInputStream
 import java.util.*
 
@@ -13,7 +11,8 @@ fun main(args: Array<String>) {
 //    }
     // Start the Ethereum client
     val ethereumClient = EthereumClient()
-    ethereumClient.getCurrentBlockNumber()
+    ethereumClient.deployLedgerContract()
+    ethereumClient.deployManagementCommitteeContract()
 
     // Start the gRPC server for the external client to make state requests to
     val properties = Properties()

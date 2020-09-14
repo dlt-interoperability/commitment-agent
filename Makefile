@@ -6,6 +6,6 @@ build: ./scripts/get-solidity-contracts.sh
 start: build
 	./gradlew run
 
-.PHONY: stop
-stop: 
+.PHONY: clean
+clean:
 	rm wallet/admin.id wallet/agentUser.id

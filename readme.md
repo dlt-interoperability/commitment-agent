@@ -62,7 +62,7 @@ the user and admin credentials for the agent need to be deleted so they can be
 reissued by the Fabric network CA. This can be done with:
 
 ```
-make stop
+make clean
 ```
 
 ### Making queries from the external client

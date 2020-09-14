@@ -2,9 +2,7 @@ package commitment.agent
 
 import arrow.core.*
 import com.google.gson.Gson
-import com.sun.org.apache.xpath.internal.operations.Bool
 import org.hyperledger.fabric.gateway.*
-import org.hyperledger.fabric.protos.peer.ProposalResponsePackage
 import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
 import org.hyperledger.fabric.sdk.User
