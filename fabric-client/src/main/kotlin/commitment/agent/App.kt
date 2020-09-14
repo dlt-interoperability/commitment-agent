@@ -16,8 +16,8 @@ fun main(args: Array<String>) {
     val properties = Properties()
     FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
             .use { properties.load(it) }
-    val grpcServerPort = (properties["GRPC_SERVER_PORT"] as String).toInt()
-    val server = GrpcServer(grpcServerPort)
+    val grpcServerPort = (properties["STATE_PROOF_GRPC_SERVER_PORT"] as String).toInt()
+    val server = StateProofGrpcServer(grpcServerPort)
     server.start()
     server.blockUntilShutdown()
 }

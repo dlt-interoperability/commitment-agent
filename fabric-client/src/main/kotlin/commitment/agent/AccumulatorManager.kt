@@ -5,9 +5,9 @@ import arrow.core.Left
 import arrow.core.Right
 import arrow.core.flatMap
 import com.google.gson.Gson
+import commitment.CommitmentOuterClass
 import org.starcoin.rsa.RSAAccumulator
 import org.starcoin.rsa.stringToHashBigInteger
-import proof.ProofOuterClass
 import proof.ProofOuterClass.Proof
 
 /**
@@ -23,7 +23,7 @@ import proof.ProofOuterClass.Proof
  * be determined. Finally, the accumulator for the block is stored back in the DB as
  * a JSON string using the block number as the key.
  */
-fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Unit> = try {
+fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, String> = try {
     println("Updating accumulator for blockNum: $blockNum")
     val db = MapDb()
 
@@ -41,9 +41,7 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Uni
         // Note that if this is an empty list the accumulator doesn't get updated.
         val kvHash = kvWrites.map { kvWrite ->
             val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
-            println("KvWrite to be stored in the accumulator: $jsonString")
             val kvHash = stringToHashBigInteger(jsonString)
-            println("Hash representation of this KvWrite used as a key in the accumulator: $kvHash")
             // WARNING: this mutates the accumulator
             accumulator.add(kvHash)
         }
@@ -51,9 +49,13 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Uni
         // Convert the accumulator to a JSON string to store back in the DB
         val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
         if (blockNum == 2) {
-            db.start(blockNum, accumulatorJson)
+            db.start(blockNum, accumulatorJson).map {
+                accumulator.a.toString()
+            }
         } else {
-            db.update(blockNum, accumulatorJson)
+            db.update(blockNum, accumulatorJson).map {
+                accumulator.a.toString()
+            }
         }
     }
 } catch (e: Exception) {
@@ -73,7 +75,7 @@ fun getState(key: String): String = "not yet implemented"
  */
 fun createProof(
         key: String,
-        commitment: ProofOuterClass.Commitment
+        commitment: CommitmentOuterClass.Commitment
 ): Either<Error, Proof> {
     val db = MapDb()
     val proof = db.get(commitment.blockHeight).map {

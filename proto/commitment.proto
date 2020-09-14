@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package commitment;
+
+service CommitmentService {
+  rpc SendCommitment(Commitment) returns (Ack) {}
+}
+
+message Commitment {
+  // String representation of the accumulator BigInteger
+  string accumulator = 1;
+  int32 block_height = 2;
+}
+
+message Ack {
+  enum STATUS {
+    OK = 0;
+    ERROR = 1;
+  };
+  STATUS status = 2;
+  string message = 3;
+}

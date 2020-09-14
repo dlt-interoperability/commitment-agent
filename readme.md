@@ -28,11 +28,11 @@ repository. Follow instructions in the repo to do this. **Change line 21 in the
 
 ### Update the config properties
 
-Update the config file in `/src/main/resources/config.properties` to point to
+Update the config file in `fabric-client/src/main/resources/config.properties` to point to
 the correct location of the network connection profile for the Fabric network and
 the CA certificate.
 
-The driver port can also be changed from this file if needed.
+The state proof service and commitment service gRPC ports can also be changed from this file if needed.
 
 ### Clone the bulletin board repo
 
@@ -65,8 +65,8 @@ restart the network.
 In two separate terminal panes, run:
 
 ```
-make start-fabric
 make start-ethereum
+make start-fabric
 ```
 
 **Note on restarting the agent**: If the Fabric network is stopped and started,
