@@ -5,6 +5,13 @@ buildscript {
         grpc_version = "1.29.0"
         grpc_kotlin_version = "0.1.4"
     }
+    // This is a workaround to issue
+    // https://github.com/web3j/web3j-gradle-plugin/issues/34
+    dependencies {
+        classpath ("org.web3j:codegen:4.6.3") {
+            force = true
+        }
+    }
 }
 
 plugins {
