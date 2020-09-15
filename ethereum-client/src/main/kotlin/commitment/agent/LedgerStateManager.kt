@@ -1,9 +1,6 @@
 package commitment.agent.ethereum.client
 
-import arrow.core.Either
-import arrow.core.Left
-import arrow.core.Right
-import arrow.core.flatMap
+import arrow.core.*
 import commitment.agent.contracts.generated.LedgerState
 import commitment.agent.contracts.generated.ManagementCommittee
 import org.web3j.crypto.Credentials
@@ -23,6 +20,7 @@ class LedgerStateManager() {
     val gasProvider = StaticGasProvider(BigInteger.valueOf(20000000000),BigInteger.valueOf(6721975))
     val properties = Properties()
     var credentials: Credentials
+    var ledgerContractAddress: Option<String> = None
 
     init {
         FileInputStream("${System.getProperty("user.dir")}/ethereum-client/src/main/resources/config.properties")
@@ -30,34 +28,14 @@ class LedgerStateManager() {
         // By default his is the private key of the first account created by the ganache-cli deterministic network
         val privateKey = (properties["ETHEREUM_PRIVATE_KEY"] as String)
         credentials = Credentials.create(privateKey)
-        deployLedgerStateContract()
+        ledgerContractAddress = deployLedgerStateContract()
                 .flatMap {  ledgerContractAddress ->
                     setManagementCommittee(ledgerContractAddress).map { ledgerContractAddress }
                 }
                 .flatMap { ledgerContractAddress ->
                     val quorum = (properties["POLICY_QUORUM"] as String).toInt()
-                    setPolicy(ledgerContractAddress, quorum)
-                }
-    }
-
-    fun getCurrentBlockNumber(): Either<Error, Int> = try {
-        val blockNumber = web3j.ethBlockNumber().sendAsync().get().blockNumber.intValueExact()
-        Right(blockNumber)
-    } catch (e: Exception) {
-        println("Ethereum Error: Error getting current block number: ${e.message}")
-        Left(Error("Ethereum Error: Error getting current block number: ${e.message}"))
-    }
-
-    fun getAccountBalance(accountAddress: String): Either<Error, String> = try {
-        val accountBalance = web3j
-                .ethGetBalance(accountAddress, DefaultBlockParameter.valueOf("latest"))
-                .sendAsync()
-                .get()
-                .balance
-        Right("$accountBalance")
-    } catch (e: Exception) {
-        println("Ethereum Error: Error deploying ledger contract: ${e.message}\n")
-        Left(Error("Ethereum Error: Error deploying ledger contract${e.message}"))
+                    setPolicy(ledgerContractAddress, quorum).map { ledgerContractAddress }
+                }.fold({ None }, { Some(it) })
     }
 
     fun deployLedgerStateContract(): Either<Error, String> = try {
@@ -75,9 +53,7 @@ class LedgerStateManager() {
         Left(Error("Ethereum Error: Error initializing ledger contract${e.message}"))
     }
 
-    fun setManagementCommittee(
-            lsContractAddress: String
-    ): Either<Error, TransactionReceipt> = try {
+    fun setManagementCommittee(lsContractAddress: String): Either<Error, TransactionReceipt> = try {
         val lsInstance = LedgerState.load(
                 lsContractAddress,
                 web3j,
@@ -108,7 +84,7 @@ class LedgerStateManager() {
             }
         }
     } catch (e: Exception) {
-        println("Ethereum Error: Error setting management committee: ${e.message}")
+        println("Ethereum Error: Error setting management committee: ${e.message}\n")
         Left(Error("Ethereum Error: Error setting management committee: ${e.message}"))
     }
 
@@ -130,11 +106,43 @@ class LedgerStateManager() {
             println("Successfully set the policy: $txReceipt")
             Right(txReceipt)
         } else {
-            println("Ethereum Error: setPolicy transaction failed : ${txReceipt}")
+            println("Ethereum Error: setPolicy transaction failed : ${txReceipt}\n")
             Left(Error("Ethereum Error: setPolicy transaction failed : ${txReceipt}"))
         }
     } catch (e: Exception) {
-        println("Ethereum Error: Error setting ledger state policy: ${e.message}")
+        println("Ethereum Error: Error setting ledger state policy: ${e.message}\n")
         Left(Error("Ethereum Error: Error setting ledger state policy: ${e.message}"))
+    }
+
+    fun postCommitment(commitment: String, blockHeight: Int): Either<Error, TransactionReceipt> = try {
+        println("Submitting commitment for block height $blockHeight")
+        ledgerContractAddress.fold({
+            Left(Error("Ethereum Error: Ledger contract failed to initiate"))
+        }, {
+            val ledgerState = LedgerState.load(
+                    it,
+                    web3j,
+                    credentials,
+                    gasProvider)
+            val commitmentByteArray = stringToBytes32ByteArray(commitment)
+            println("commitmentByteArray: $commitmentByteArray")
+            commitmentByteArray.flatMap { byteArray ->
+                val txReceipt = ledgerState
+                        .postCommitment(byteArray, BigInteger.valueOf(blockHeight.toLong()))
+                        .sendAsync()
+                        .get()
+                // A status of "0x1 indicates a successful transaction
+                if (txReceipt.status == "0x1") {
+                    println("Successfully submitted the commitment: $txReceipt")
+                    Right(txReceipt)
+                } else {
+                    println("Ethereum Error: submitting the commitment failed: ${txReceipt}\n")
+                    Left(Error("Ethereum Error: submitting the commitment failed: ${txReceipt}"))
+                }
+            }
+        })
+    } catch (e: Exception) {
+        println("Ethereum Error: Error posting commitment: ${e.message}\n")
+        Left(Error("Ethereum Error: Error posting commitment: ${e.message}"))
     }
 }

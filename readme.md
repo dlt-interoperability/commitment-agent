@@ -115,8 +115,9 @@ Conventions:
 - Use recursion over loops (when tail recursion is possible to improve performance and avoid stack overflow).
 
 Example Gists:
+
 - [How to catch exceptions and convert to and Either type](https://gist.github.com/airvin/79f1fb2a3821a9e5d227db3ee9561f42).
-- [Using flatMap to compose functions that return Eithers](https://gist.github.com/airvin/3bfae1f3e622e466ba9072b53684555a). 
+- [Using flatMap to compose functions that return Eithers](https://gist.github.com/airvin/3bfae1f3e622e466ba9072b53684555a).
 - [Folding over an Either Error to reduce to a single type](https://gist.github.com/airvin/eabc99a9552a0573afd2dd9a13e75948).
 
 ## TODO
@@ -131,11 +132,12 @@ RSA Accumulators
 - Add a config file to store path to local Maven repository for the
   `build.gradle` file.
 - Update function should trigger the Ethereum publication function every _k_
-  blocks (with signature).
+  blocks (with signature). Currently, it is triggering publication on every
+  block.
 - Function to get state based on key and block height from the peer.
 - Figure out how the RSA accumulator can be initialised deterministically so it
   will be the same across all agents.
 
 Ethereum Client
 
-- Implement functions in the smart contract interface to publish accumulator.
+- Fix the type of the commitment on the bulletin board to fit the entire commitment
