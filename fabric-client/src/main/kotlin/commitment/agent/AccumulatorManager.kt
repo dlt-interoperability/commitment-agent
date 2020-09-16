@@ -75,38 +75,45 @@ fun getState(key: String): String = "not yet implemented"
  */
 fun createProof(
         key: String,
-        commitment: CommitmentOuterClass.Commitment
+        ethCommitment: CommitmentOuterClass.Commitment
 ): Either<Error, Proof> {
     val db = MapDb()
-    val proof = db.get(commitment.blockHeight).map {
+    val proof = db.get(ethCommitment.blockHeight).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
     }.flatMap { accumulator ->
-        val fabricClient = FabricClient()
-        // TODO: Need to somehow relate this history with block height
-        fabricClient.getStateHistory(key).map { history ->
-            history.map {
-                println("Key modification: $it")
+        // Check that the accumulator stored in the DB at that block height matches the
+        // accumulator the external client sent for the block height
+        if (accumulator.a.toString().contains(ethCommitment.accumulator)) {
+            val fabricClient = FabricClient()
+            // TODO: Need to somehow relate this history with block height
+            fabricClient.getStateHistory(key).map { history ->
+                history.map {
+                    println("Key modification: $it")
+                }
             }
-        }
-        // TODO: Until getting state at a block height is figured out, just assume the latest value is the required one.
-        fabricClient.getState(key).flatMap { value ->
-            // Recreate the kvWrite that was used in the accumulator
-            val kvWrite = KvWrite(
-                    key = key,
-                    isDelete = false,
-                    value = value
-            )
-            val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
-            val kvHash = stringToHashBigInteger(kvJson)
-            accumulator.createProof(kvHash).map { proof ->
-                Proof.newBuilder()
-                        .setState(kvJson)
-                        .setNonce(proof.nonce.toString())
-                        .setProof(proof.proof.toString())
-                        .setA(accumulator.a.toString())
-                        .setN(proof.n.toString())
-                        .build()
+            // TODO: Until getting state at a block height is figured out, just assume the latest value is the required one.
+            fabricClient.getState(key).flatMap { value ->
+                // Recreate the kvWrite that was used in the accumulator
+                val kvWrite = KvWrite(
+                        key = key,
+                        isDelete = false,
+                        value = value
+                )
+                val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
+                val kvHash = stringToHashBigInteger(kvJson)
+                accumulator.createProof(kvHash).map { proof ->
+                    Proof.newBuilder()
+                            .setState(kvJson)
+                            .setNonce(proof.nonce.toString())
+                            .setProof(proof.proof.toString())
+                            .setA(accumulator.a.toString())
+                            .setN(proof.n.toString())
+                            .build()
+                }
             }
+        } else {
+            println("The accumulator provided by the external client does not match the stored accumulator for that block height.")
+            Left(Error("The accumulator provided by the external client does not match the stored accumulator for that block height."))
         }
     }
     println("Created proof: $proof\n")

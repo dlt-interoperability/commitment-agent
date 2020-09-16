@@ -69,6 +69,10 @@ make start-ethereum
 make start-fabric
 ```
 
+When the Ethereum client starts, note down the ledger state contract address as
+this is needed by the external client to know how to query Ethereum for the
+latest commitment.
+
 **Note on restarting the agent**: If the Fabric network is stopped and started,
 the user and admin credentials for the agent need to be deleted so they can be
 reissued by the Fabric network CA. This can be done with:
@@ -85,7 +89,7 @@ clone the repo, update path to local Maven repository, and run:
 
 ```
 ./gradlew installDist
-./build/install/external-client/bin/external-client get-proof key1 7
+./build/install/external-client/bin/external-client get-proof key1 <ledger state contract address>
 ```
 
 Note that the last argument is the block height that the client wishes to
