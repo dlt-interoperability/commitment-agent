@@ -6,9 +6,11 @@ import java.io.FileInputStream
 import java.util.*
 
 fun main(args: Array<String>) {
+    val orgName = try { args[0] } catch (e: Exception) { "" }
+
     // Start the Fabric client
     GlobalScope.launch {
-        val fabricClient = FabricClient(args[0])
+        val fabricClient = FabricClient(orgName)
         fabricClient.start()
     }
 
@@ -17,7 +19,7 @@ fun main(args: Array<String>) {
     FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
             .use { properties.load(it) }
     val grpcServerPort = (properties["STATE_PROOF_GRPC_SERVER_PORT"] as String).toInt()
-    val server = StateProofGrpcServer(grpcServerPort, args[0])
+    val server = StateProofGrpcServer(grpcServerPort, orgName)
     server.start()
     server.blockUntilShutdown()
 }
