@@ -19,8 +19,11 @@ class FabricClient() {
     var gateway: Option<Gateway> = None
     var network: Option<Network> = None
     var contract: Option<Contract> = None
+    val config = Properties()
 
     init {
+        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
+                .use { config.load(it) }
         // First enroll an admin and user
         // TODO: move this to initialisation script
         enrollAdmin()
@@ -80,9 +83,6 @@ class FabricClient() {
     }
 
     fun createCaClient(): HFCAClient {
-        val config = Properties()
-        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
-                .use { config.load(it) }
         val props = Properties()
         props["pemFile"] = config["CA_PEM_PATH"]
         props["allowAllHostNames"] = "true"
@@ -175,11 +175,7 @@ class FabricClient() {
         val walletPath = Paths.get("wallet")
         val wallet = Wallets.newFileSystemWallet(walletPath)
 
-        // Path to a common connection profile describing the network.
-        val properties = Properties()
-        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
-                .use { properties.load(it) }
-        val networkConfigFile = Paths.get(properties["NETWORK_CONFIG_PATH"] as String)
+        val networkConfigFile = Paths.get(config["NETWORK_CONFIG_PATH"] as String)
 
         // Configure the gateway connection used to access the network.
         // TODO: parameterise
