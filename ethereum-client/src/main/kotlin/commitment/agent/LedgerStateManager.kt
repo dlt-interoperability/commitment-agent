@@ -124,7 +124,6 @@ class LedgerStateManager() {
                     credentials,
                     gasProvider)
             val commitmentByteArray = stringToBytes32ByteArray(commitment)
-            println("commitmentByteArray: $commitmentByteArray")
             commitmentByteArray.flatMap { byteArray ->
                 val txReceipt = ledgerState
                         .postCommitment(byteArray, BigInteger.valueOf(blockHeight.toLong()))
@@ -133,6 +132,7 @@ class LedgerStateManager() {
                 // A status of "0x1 indicates a successful transaction
                 if (txReceipt.status == "0x1") {
                     println("Successfully submitted the commitment: $txReceipt")
+                    println("Ledger state contract address is $ledgerContractAddress\n")
                     Right(txReceipt)
                 } else {
                     println("Ethereum Error: submitting the commitment failed: ${txReceipt}\n")

@@ -16,7 +16,7 @@ fun main(args: Array<String>) {
 
     // Start the gRPC server for the external client to make state requests to
     val properties = Properties()
-    FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
+    FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/${orgName}config.properties")
             .use { properties.load(it) }
     val grpcServerPort = (properties["STATE_PROOF_GRPC_SERVER_PORT"] as String).toInt()
     val server = StateProofGrpcServer(grpcServerPort, orgName)

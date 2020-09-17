@@ -34,14 +34,11 @@ class CommitmentServiceGrpcClient(private val channel: ManagedChannel) : Closeab
     }
 }
 
-fun sendCommitteeHelper(publicKeys: List<String>) = try {
-    val properties = Properties()
-    FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
-            .use { properties.load(it) }
+fun sendCommitteeHelper(publicKeys: List<String>, config: Properties) = try {
     val client = CommitmentServiceGrpcClient(
             ManagedChannelBuilder.forAddress(
-                    properties["COMMITMENT_GRPC_SERVER_HOST"] as String,
-                    (properties["COMMITMENT_GRPC_SERVER_PORT"] as String).toInt())
+                    config["COMMITMENT_GRPC_SERVER_HOST"] as String,
+                    (config["COMMITMENT_GRPC_SERVER_PORT"] as String).toInt())
                     .usePlaintext()
                     .executor(Dispatchers.Default.asExecutor())
                     .build())
@@ -62,14 +59,11 @@ fun sendCommitteeHelper(publicKeys: List<String>) = try {
     Left(Error("Error sending management committee to Ethereum client: ${e.message}\n"))
 }
 
-fun sendCommitmentHelper(accumulator: String, blockNum: Int) = try {
-    val properties = Properties()
-    FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
-            .use { properties.load(it) }
+fun sendCommitmentHelper(accumulator: String, blockNum: Int, config: Properties) = try {
     val client = CommitmentServiceGrpcClient(
             ManagedChannelBuilder.forAddress(
-                    properties["COMMITMENT_GRPC_SERVER_HOST"] as String,
-                    (properties["COMMITMENT_GRPC_SERVER_PORT"] as String).toInt())
+                    config["COMMITMENT_GRPC_SERVER_HOST"] as String,
+                    (config["COMMITMENT_GRPC_SERVER_PORT"] as String).toInt())
                     .usePlaintext()
                     .executor(Dispatchers.Default.asExecutor())
                     .build())

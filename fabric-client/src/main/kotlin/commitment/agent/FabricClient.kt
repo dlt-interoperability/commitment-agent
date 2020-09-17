@@ -45,7 +45,7 @@ class FabricClient(val orgId: String) {
         // Send the set of public keys to the Ethereum client to initialise the management committee
         // TODO: move this to initialisation script
         getFabricAgentPublicKeys().map {
-            sendCommitteeHelper(it)
+            sendCommitteeHelper(it, config)
         }
 
         // Get all blocks from block 2 onwards and start listening for new block events
@@ -183,36 +183,36 @@ class FabricClient(val orgId: String) {
                 .discovery(true)
         return builder.connect()
     }
-}
 
-/**
- * The handleBlockEvent function processes every block that's received from the Fabric
- * peer to determine how the accumulator should be updated. If the block is a config
- * (anything else?) block, the accumulator should not be modified, but a new entry of the
- * accumulator should be stored in the accumulator DB for that block height. Otherwise,
- * the block will contain updates to the application state in the Fabric ledger, and the
- * accumulator should be updated accordingly.
- */
-fun handleBlockEvent(blockEvent: BlockEvent) {
-    val blockNum = blockEvent.blockNumber.toInt()
-    println("Processing block $blockNum")
-    val kvWrites = blockEvent.transactionEvents
-            // Filter the valid transactions
-            .filter { it.isValid }
-            // Get the set of KVWrites across all transactions
-            .flatMap { txEvent ->
-                txEvent.transactionActionInfos.flatMap { txActionInfo ->
-                    txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
-                        nsRwsetInfo.rwset.writesList.map { kvWrite ->
-                            KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
+    /**
+     * The handleBlockEvent function processes every block that's received from the Fabric
+     * peer to determine how the accumulator should be updated. If the block is a config
+     * (anything else?) block, the accumulator should not be modified, but a new entry of the
+     * accumulator should be stored in the accumulator DB for that block height. Otherwise,
+     * the block will contain updates to the application state in the Fabric ledger, and the
+     * accumulator should be updated accordingly.
+     */
+    fun handleBlockEvent(blockEvent: BlockEvent) {
+        val blockNum = blockEvent.blockNumber.toInt()
+        println("Processing block $blockNum")
+        val kvWrites = blockEvent.transactionEvents
+                // Filter the valid transactions
+                .filter { it.isValid }
+                // Get the set of KVWrites across all transactions
+                .flatMap { txEvent ->
+                    txEvent.transactionActionInfos.flatMap { txActionInfo ->
+                        txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
+                            nsRwsetInfo.rwset.writesList.map { kvWrite ->
+                                KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
+                            }
                         }
                     }
                 }
-            }
-    // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-    updateAccumulator(blockNum, kvWrites).flatMap { accumulator ->
-        // Then send the accumulator to the Ethereum client for publishing
-        sendCommitmentHelper(accumulator, blockNum)
+        // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
+        updateAccumulator(blockNum, kvWrites).flatMap { accumulator ->
+            // Then send the accumulator to the Ethereum client for publishing
+            sendCommitmentHelper(accumulator, blockNum, config)
+        }
     }
 }
 
