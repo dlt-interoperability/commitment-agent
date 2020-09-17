@@ -15,14 +15,14 @@ import java.nio.file.Paths
 import java.security.PrivateKey
 import java.util.*
 
-class FabricClient() {
+class FabricClient(val orgId: String) {
     var gateway: Option<Gateway> = None
     var network: Option<Network> = None
     var contract: Option<Contract> = None
     val config = Properties()
 
     init {
-        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
+        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/${orgId}config.properties")
                 .use { config.load(it) }
         // First enroll an admin and user
         // TODO: move this to initialisation script

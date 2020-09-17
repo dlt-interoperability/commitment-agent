@@ -6,10 +6,10 @@ import proof.StateProofServiceGrpcKt
 import proof.ProofOuterClass
 
 
-class StateProofGrpcServer(private val port: Int) {
+class StateProofGrpcServer(private val port: Int, val orgName: String) {
     val server: Server = ServerBuilder
             .forPort(port)
-            .addService(GrpcService())
+            .addService(GrpcService(orgName))
             .build()
 
     fun start() {
@@ -32,10 +32,10 @@ class StateProofGrpcServer(private val port: Int) {
     }
 }
 
-class GrpcService : StateProofServiceGrpcKt.StateProofServiceCoroutineImplBase() {
+class GrpcService(val orgName: String) : StateProofServiceGrpcKt.StateProofServiceCoroutineImplBase() {
     override suspend fun requestStateProof(request: ProofOuterClass.StateProofRequest): ProofOuterClass.StateProofResponse {
         println("Received request for state and proof: $request")
-        return createProof(request.key, request.commitment).fold({ error ->
+        return createProof(request.key, request.commitment, orgName).fold({ error ->
             println("Returning error: ${error.message}\n")
             ProofOuterClass.StateProofResponse.newBuilder()
                     .setError(error.message)

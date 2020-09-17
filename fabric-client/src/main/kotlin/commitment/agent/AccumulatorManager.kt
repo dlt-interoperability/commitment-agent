@@ -75,7 +75,8 @@ fun getState(key: String): String = "not yet implemented"
  */
 fun createProof(
         key: String,
-        ethCommitment: CommitmentOuterClass.Commitment
+        ethCommitment: CommitmentOuterClass.Commitment,
+        orgName: String
 ): Either<Error, Proof> {
     val db = MapDb()
     val proof = db.get(ethCommitment.blockHeight).map {
@@ -84,7 +85,7 @@ fun createProof(
         // Check that the accumulator stored in the DB at that block height matches the
         // accumulator the external client sent for the block height
         if (accumulator.a.toString().contains(ethCommitment.accumulator)) {
-            val fabricClient = FabricClient()
+            val fabricClient = FabricClient(orgName)
             // TODO: Need to somehow relate this history with block height
             fabricClient.getStateHistory(key).map { history ->
                 history.map {

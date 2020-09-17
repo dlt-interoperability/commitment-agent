@@ -8,7 +8,7 @@ import java.util.*
 fun main(args: Array<String>) {
     // Start the Fabric client
     GlobalScope.launch {
-        val fabricClient = FabricClient()
+        val fabricClient = FabricClient(args[0])
         fabricClient.start()
     }
 
@@ -17,7 +17,7 @@ fun main(args: Array<String>) {
     FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
             .use { properties.load(it) }
     val grpcServerPort = (properties["STATE_PROOF_GRPC_SERVER_PORT"] as String).toInt()
-    val server = StateProofGrpcServer(grpcServerPort)
+    val server = StateProofGrpcServer(grpcServerPort, args[0])
     server.start()
     server.blockUntilShutdown()
 }
