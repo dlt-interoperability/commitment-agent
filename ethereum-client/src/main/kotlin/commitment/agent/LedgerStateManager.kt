@@ -5,7 +5,6 @@ import commitment.agent.contracts.generated.LedgerState
 import commitment.agent.contracts.generated.ManagementCommittee
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
-import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.http.HttpService
 import org.web3j.tx.gas.StaticGasProvider
@@ -13,14 +12,13 @@ import java.io.FileInputStream
 import java.math.BigInteger
 import java.util.Properties
 
-class LedgerStateManager() {
+class LedgerStateManager(var ledgerContractAddress: Option<String>) {
     // This defaults to http://localhost:8545/
     // TODO add this to config
     val web3j = Web3j.build(HttpService())
     val gasProvider = StaticGasProvider(BigInteger.valueOf(20000000000),BigInteger.valueOf(6721975))
     val properties = Properties()
     var credentials: Credentials
-    var ledgerContractAddress: Option<String> = None
 
     init {
         FileInputStream("${System.getProperty("user.dir")}/ethereum-client/src/main/resources/config.properties")
@@ -28,11 +26,13 @@ class LedgerStateManager() {
         // By default his is the private key of the first account created by the ganache-cli deterministic network
         val privateKey = (properties["ETHEREUM_PRIVATE_KEY"] as String)
         credentials = Credentials.create(privateKey)
-        ledgerContractAddress = deployLedgerStateContract()
-                .flatMap { ledgerContractAddress ->
-                    val quorum = (properties["POLICY_QUORUM"] as String).toInt()
-                    setPolicy(ledgerContractAddress, quorum).map { ledgerContractAddress }
-                }.fold({ None }, { Some(it) })
+        if (ledgerContractAddress.isEmpty()) {
+            ledgerContractAddress = deployLedgerStateContract()
+                    .flatMap { ledgerContractAddress ->
+                        val quorum = (properties["POLICY_QUORUM"] as String).toInt()
+                        setPolicy(ledgerContractAddress, quorum).map { ledgerContractAddress }
+                    }.fold({ None }, { Some(it) })
+        }
     }
 
     fun deployLedgerStateContract(): Either<Error, String> = try {

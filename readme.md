@@ -28,11 +28,22 @@ repository. Follow instructions in the repo to do this. **Change line 21 in the
 
 ### Update the config properties
 
-Update the config file in `fabric-client/src/main/resources/config.properties` to point to
-the correct location of the network connection profile for the Fabric network and
-the CA certificate.
+There needs to be a config file corresponding to each agent that will be
+connecting to a Fabric peer. The
+`fabric-client/src/main/resources/config.properties` file can be used as a
+template to a new file called `<orgId>config.properties`. Update the file with
+the following:
 
-The state proof service and commitment service gRPC ports can also be changed from this file if needed.
+- The host and port of the gRPC server that will be running to receive state and
+  proof requests from the external client. (`STATE_PROOF_GRPC_SERVER_HOST` and
+  `STATE_PROOF_GRPC_SERVER_PORT`).
+- The host and port of the gRPC server of the Ethereum client component of the
+  agent that the Fabric client will be communicating with.
+  (`COMMITMENT_GRPC_SERVER_HOST` and `COMMITMENT_GRPC_SERVER_PORT`).
+- The path to the connection json file of the peer
+  (`COMMITMENT_GRPC_SERVER_HOST`) and the path to the peer organization's CA
+  certificate (`CA_PEM_PATH`).
+- Other peer-specific variables (e.g. `MSP` id, `AFFILIATION`, etc.).
 
 ### Clone the bulletin board repo
 
@@ -62,19 +73,35 @@ restart the network.
 
 ## Start the Fabric agent
 
-In two separate terminal panes, run:
+**Currently only having one agent running at a time is working. It is possible
+to choose between either `org1` or `org2`. Leave off the `LC_ADDRESS` for the
+Ethereum client and include the `INIT="true"` flag when starting up the Ethereum
+and Fabric clients of whichever org agent is started.**
+
+Only one of the Ethereum clients needs to deploy the ledger state contract.
+Start the first peer's Ethereum client, then copy the ledger
+contract address printed and use it when starting the second peer's Ethereum
+client in a separate terminal pane.
 
 ```
-make start-ethereum
-make start-fabric
+make start-ethereum ORG="org1"
+make start-ethereum ORG="org2" LC_ADDRESS="<lc-address>"
 ```
 
-When the Ethereum client starts, note down the ledger state contract address as
-this is needed by the external client to know how to query Ethereum for the
-latest commitment.
+The credentials for both the Fabric clients need to be generated before
+submitting the management committee to the ledger state contract. Therefore, the
+second client that is started should have the `INIT="true"` flag, which tells
+the client that it should look up all the user public keys in the wallet folder
+and submit them as the management committee to the ledger state Ethereum
+contract. In separate terminal panes, run:
+
+```
+make start-fabric ORG="org2"
+make start-fabric ORG="org1" INIT="true"
+```
 
 **Note on restarting the agent**: If the Fabric network is stopped and started,
-the user and admin credentials for the agent need to be deleted so they can be
+the user and admin credentials for the agents need to be deleted so they can be
 reissued by the Fabric network CA. This can be done with:
 
 ```
@@ -85,17 +112,17 @@ make clean
 
 The [external client](https://github.com/dlt-interoperability/external-client)
 is a command line application that can make requests to the agent. To do so,
-clone the repo, update path to local Maven repository, and run:
+clone the repo, update path to local Maven repository and build the binary with:
 
 ```
 ./gradlew installDist
-./build/install/external-client/bin/external-client get-proof key1 <ledger state contract address>
 ```
 
-Note that the last argument is the block height that the client wishes to
-retrieve a state and proof for. The requirement to include this block height is
-a temporary workaround while the external client is making a dummy commitment
-instead of getting it from Ethereum.
+The command has the structure: `get-proof <state-key> <ledger-state-contract-address> <fabric-org-id>`. For example:
+
+```
+./build/install/external-client/bin/external-client get-proof key1 0xe78a0f7e598cc8b0bb87894b0f60dd2a88d6a8ab org1
+```
 
 ### Troubleshooting gRPC
 
@@ -128,8 +155,10 @@ Example Gists:
 
 Fabric
 
-- We will need an agent running for every peer, so FabricClient will need to be
-  parameterised.
+- Check the `isDelete` flag of the KVWrites and delete the state from the
+  accumulator if needed.
+- **Work out how to name the admin user so the CA is happy _and_ there different
+  file names in the wallet.**
 
 RSA Accumulators
 
@@ -139,17 +168,9 @@ RSA Accumulators
   blocks (with signature). Currently, it is triggering publication on every
   block.
 - Function to get state based on key and block height from the peer.
-- Figure out how the RSA accumulator can be initialised deterministically so it
-  will be the same across all agents.
+- **Figure out how the RSA accumulator can be initialised deterministically so it
+  will be the same across all agents.**
 
 Ethereum Client
 
 - Fix the type of the commitment on the bulletin board to fit the entire commitment
-- There are some initialisation activities that need to happen only once on
-  network startup. We should have a separate script to do this initialisation.
-  It will need to coordinate the deployment of the LedgerState contract, the
-  Management Committee contract, the creation of Fabric client credentials for
-  all the Fabric agents, the setting of the management committee on the
-  LedgerState contract with the Fabric client public keys and the setting of the
-  policy on the LedgerState contract. The Fabric agent and Ethereum client
-  should be updated to not do any of these intialisation tasks.

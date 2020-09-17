@@ -25,9 +25,7 @@ class FabricClient(val orgId: String) {
         FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/${orgId}config.properties")
                 .use { config.load(it) }
         // First enroll an admin and user
-        // TODO: move this to initialisation script
         enrollAdmin()
-        // TODO: move this to initialisation script
         registerUser()
         println("Attempting to connect to Fabric network")
         // Create a gateway connection
@@ -42,16 +40,20 @@ class FabricClient(val orgId: String) {
     }
 
     fun start() = try {
-        // Send the set of public keys to the Ethereum client to initialise the management committee
-        // TODO: move this to initialisation script
-        getFabricAgentPublicKeys().map {
-            sendCommitteeHelper(it, config)
-        }
-
         // Get all blocks from block 2 onwards and start listening for new block events
         this.network.map { it.addBlockListener(2, ::handleBlockEvent) }
     } catch (e: Exception) {
-        println("Fabric Error: Error creating block listener: ${e.stackTrace}")
+        println("Fabric Error: Error creating block listener: ${e.message}")
+    }
+
+    fun initialize() = try {
+        // Send the set of public keys to the Ethereum client to initialise the management committee
+        getFabricAgentPublicKeys().flatMap {
+            sendCommitteeHelper(it, config)
+        }
+    } catch (e: Exception) {
+        println("Fabric Error: Error creating block listener: ${e.message}")
+        Left(Error("Fabric Error: Error creating block listener: ${e.message}"))
     }
 
     fun getState(key: String): Either<Error, String> = try {
@@ -81,13 +83,6 @@ class FabricClient(val orgId: String) {
         println("Fabric Error: Error getting state history for key $key: ${e.message}")
         Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
     }
-
-//    val caUrl = config["CA_URL"] as String
-//    val admin = config["ADMIN"] as String
-//    val hostname = config["HOSTNAME"] as String
-//    val msp = config["MSP"] as String
-//    val user = config["USER"] as String
-//    val affiliation = config["AFFILIATION"] as String
 
     fun createCaClient(): HFCAClient {
         val props = Properties()
