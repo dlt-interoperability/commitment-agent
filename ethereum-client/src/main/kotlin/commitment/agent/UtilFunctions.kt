@@ -1,15 +1,6 @@
 package commitment.agent.ethereum.client
 
 import arrow.core.*
-import arrow.core.extensions.either.applicative.applicative
-import arrow.core.extensions.list.traverse.traverse
-import com.google.gson.Gson
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.FilenameFilter
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
-import java.util.Base64
 
 /**
  * This function currently takes the first 32 bytes of the accumulator and returns it as a bytearray

@@ -1,15 +1,7 @@
 package commitment.agent.fabric.client
 
 import arrow.core.*
-import arrow.core.extensions.either.applicative.applicative
-import arrow.core.extensions.list.traverse.traverse
 import com.google.gson.Gson
-import commitment.CommitmentOuterClass
-import io.grpc.ManagedChannelBuilder
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asExecutor
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
@@ -18,7 +10,6 @@ import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
-import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Paths
 import java.security.PrivateKey
@@ -95,6 +86,7 @@ class FabricClient() {
         val props = Properties()
         props["pemFile"] = config["CA_PEM_PATH"]
         props["allowAllHostNames"] = "true"
+        // TODO: parameterise
         val caClient = HFCAClient.createNewInstance("https://localhost:7054", props)
         val cryptoSuite = CryptoSuiteFactory.getDefault().cryptoSuite
         caClient.cryptoSuite = cryptoSuite
@@ -107,15 +99,20 @@ class FabricClient() {
         val wallet = Wallets.newFileSystemWallet(Paths.get("wallet"))
 
         // Check to see if we've already enrolled the admin user.
+        // TODO: parameterise
         if (wallet["admin"] != null) {
             println("An identity for the admin user \"admin\" already exists in the wallet")
             return
         } else {
             val enrollmentRequestTLS = EnrollmentRequest()
+            // TODO: parameterise
             enrollmentRequestTLS.addHost("localhost")
             enrollmentRequestTLS.profile = "tls"
+            // TODO: parameterise
             val enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS)
+            // TODO: parameterise
             val user: Identity = Identities.newX509Identity("Org1MSP", enrollment)
+            // TODO: parameterise
             wallet.put("admin", user)
             println("Successfully enrolled user \"admin\" and imported it into the wallet")
         }
@@ -127,59 +124,47 @@ class FabricClient() {
         val wallet = Wallets.newFileSystemWallet(Paths.get("wallet"))
 
         // Check to see if we've already enrolled the user.
+        // TODO: parameterise
         if (wallet["agentUser"] != null) {
             println("An identity for the user \"agentUser\" already exists in the wallet")
             return
         }
-
+        // TODO: parameterise
         val adminIdentity = wallet["admin"] as X509Identity
         if (adminIdentity == null) {
             println("\"admin\" needs to be enrolled and added to the wallet first")
             return
         }
         val admin: User = object : User {
-            override fun getName(): String {
-                return "admin"
-            }
-
-            override fun getRoles(): Set<String> {
-                return setOf()
-            }
-
-            override fun getAccount(): String {
-                return ""
-            }
-
-            override fun getAffiliation(): String {
-                return "org1.department1"
-            }
-
+            // TODO: parameterise
+            override fun getName(): String = "admin"
+            override fun getRoles(): Set<String> = setOf()
+            override fun getAccount(): String = ""
+            // TODO: parameterise
+            override fun getAffiliation(): String = "org1.department1"
             override fun getEnrollment(): Enrollment {
                 return object : Enrollment {
-                    override fun getKey(): PrivateKey {
-                        return adminIdentity.privateKey
-                    }
-
-                    override fun getCert(): String {
-                        return Identities.toPemString(adminIdentity.certificate)
-                    }
+                    override fun getKey(): PrivateKey = adminIdentity.privateKey
+                    override fun getCert(): String = Identities.toPemString(adminIdentity.certificate)
                 }
             }
-
-            override fun getMspId(): String {
-                return "Org1MSP"
-            }
+            // TODO: parameterise
+            override fun getMspId(): String = "Org1MSP"
         }
 
         // Register the user, enroll the user, and import the new identity into the wallet.
+        // TODO: parameterise
         val registrationRequest = RegistrationRequest("agentUser")
-        // TODO: parameterise the affiliation
+        // TODO: parameterise
         registrationRequest.affiliation = "org1.department1"
+        // TODO: parameterise
         registrationRequest.enrollmentID = "agentUser"
         val enrollmentSecret = caClient.register(registrationRequest, admin)
+        // TODO: parameterise
         val enrollment = caClient.enroll("agentUser", enrollmentSecret)
-        // TODO: parameterise the MSP name
+        // TODO: parameterise
         val user: Identity = Identities.newX509Identity("Org1MSP", enrollment)
+        // TODO: parameterise
         wallet.put("agentUser", user)
         println("Successfully enrolled user \"agentUser\" and imported it into the wallet")
     }
@@ -197,6 +182,7 @@ class FabricClient() {
         val networkConfigFile = Paths.get(properties["NETWORK_CONFIG_PATH"] as String)
 
         // Configure the gateway connection used to access the network.
+        // TODO: parameterise
         val builder = Gateway.createBuilder()
                 .identity(wallet, "agentUser")
                 .networkConfig(networkConfigFile)
