@@ -12,4 +12,5 @@ start-ethereum: build
 
 .PHONY: clean
 clean:
+	rm ethereum-client/src/main/solidity/*
 	rm wallet/admin.id wallet/agentUser.id

@@ -145,3 +145,11 @@ RSA Accumulators
 Ethereum Client
 
 - Fix the type of the commitment on the bulletin board to fit the entire commitment
+- There are some initialisation activities that need to happen only once on
+  network startup. We should have a separate script to do this initialisation.
+  It will need to coordinate the deployment of the LedgerState contract, the
+  Management Committee contract, the creation of Fabric client credentials for
+  all the Fabric agents, the setting of the management committee on the
+  LedgerState contract with the Fabric client public keys and the setting of the
+  policy on the LedgerState contract. The Fabric agent and Ethereum client
+  should be updated to not do any of these intialisation tasks.

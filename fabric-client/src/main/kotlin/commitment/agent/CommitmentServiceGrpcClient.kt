@@ -15,6 +15,13 @@ import java.util.concurrent.TimeUnit
 class CommitmentServiceGrpcClient(private val channel: ManagedChannel) : Closeable {
     private val stub = CommitmentServiceCoroutineStub(channel)
 
+    suspend fun sendCommittee(committee: CommitmentOuterClass.Committee) = coroutineScope {
+        println("Sending Fabric agent user public keys to Ethereum client: $committee")
+        val response = async { stub.sendCommittee(committee) }.await()
+        println("Received Ack: $response")
+        response
+    }
+
     suspend fun sendCommitment(commitment: CommitmentOuterClass.Commitment) = coroutineScope {
         println("Sending commitment to Ethereum client for block: ${commitment.blockHeight}")
         val response = async { stub.sendCommitment(commitment) }.await()
@@ -25,6 +32,34 @@ class CommitmentServiceGrpcClient(private val channel: ManagedChannel) : Closeab
     override fun close() {
         channel.shutdown().awaitTermination(5, TimeUnit.SECONDS)
     }
+}
+
+fun sendCommitteeHelper(publicKeys: List<String>) = try {
+    val properties = Properties()
+    FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/config.properties")
+            .use { properties.load(it) }
+    val client = CommitmentServiceGrpcClient(
+            ManagedChannelBuilder.forAddress(
+                    properties["COMMITMENT_GRPC_SERVER_HOST"] as String,
+                    (properties["COMMITMENT_GRPC_SERVER_PORT"] as String).toInt())
+                    .usePlaintext()
+                    .executor(Dispatchers.Default.asExecutor())
+                    .build())
+    val committeeBuilder = CommitmentOuterClass.Committee.newBuilder()
+    publicKeys.map { committeeBuilder.addPublicKeys(it) }
+    val committee = committeeBuilder.build()
+    runBlocking {
+        val ack = async { client.sendCommittee(committee) }.await()
+        if (ack.status == CommitmentOuterClass.Ack.STATUS.OK) {
+            Right(Unit)
+        } else {
+            println("Error sending management committee to Ethereum client: ${ack.message}\n")
+            Left(Error("Error sending management committee to Ethereum client: ${ack.message}\n"))
+        }
+    }
+} catch (e: Exception) {
+    println("Error sending management committee to Ethereum client: ${e.message}\n")
+    Left(Error("Error sending management committee to Ethereum client: ${e.message}\n"))
 }
 
 fun sendCommitmentHelper(accumulator: String, blockNum: Int) = try {

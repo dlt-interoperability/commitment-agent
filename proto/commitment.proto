@@ -3,7 +3,12 @@ syntax = "proto3";
 package commitment;
 
 service CommitmentService {
+  rpc SendCommittee(Committee) returns (Ack) {}
   rpc SendCommitment(Commitment) returns (Ack) {}
+}
+
+message Committee {
+  repeated string publicKeys = 1;
 }
 
 message Commitment {

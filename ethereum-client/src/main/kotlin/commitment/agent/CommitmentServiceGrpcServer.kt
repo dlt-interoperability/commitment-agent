@@ -33,6 +33,21 @@ class CommitmentServiceGrpcServer(private val port: Int, private val ledgerState
 }
 
 class GrpcService(val ledgerStateManager: LedgerStateManager) : CommitmentServiceGrpcKt.CommitmentServiceCoroutineImplBase() {
+
+    override suspend fun sendCommittee(request: CommitmentOuterClass.Committee): CommitmentOuterClass.Ack {
+        println("Received committee from Fabric client: $request")
+        val ack = CommitmentOuterClass.Ack.newBuilder()
+                .setStatus(CommitmentOuterClass.Ack.STATUS.OK)
+                .setMessage("Received public keys for the management committee")
+                .build()
+        val publicKeys = request.publicKeysList.asByteStringList().map {
+            it.toStringUtf8()
+        }
+        GlobalScope.launch { ledgerStateManager.setManagementCommittee(publicKeys) }
+        println("Sending back ack: $ack\n")
+        return ack
+    }
+
     override suspend fun sendCommitment(request: CommitmentOuterClass.Commitment): CommitmentOuterClass.Ack {
         println("Received commitment from Fabric client: $request")
         val ack = CommitmentOuterClass.Ack.newBuilder()

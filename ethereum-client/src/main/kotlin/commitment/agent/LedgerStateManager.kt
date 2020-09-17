@@ -29,9 +29,6 @@ class LedgerStateManager() {
         val privateKey = (properties["ETHEREUM_PRIVATE_KEY"] as String)
         credentials = Credentials.create(privateKey)
         ledgerContractAddress = deployLedgerStateContract()
-                .flatMap {  ledgerContractAddress ->
-                    setManagementCommittee(ledgerContractAddress).map { ledgerContractAddress }
-                }
                 .flatMap { ledgerContractAddress ->
                     val quorum = (properties["POLICY_QUORUM"] as String).toInt()
                     setPolicy(ledgerContractAddress, quorum).map { ledgerContractAddress }
@@ -53,27 +50,29 @@ class LedgerStateManager() {
         Left(Error("Ethereum Error: Error initializing ledger contract${e.message}"))
     }
 
-    fun setManagementCommittee(lsContractAddress: String): Either<Error, TransactionReceipt> = try {
-        val lsInstance = LedgerState.load(
-                lsContractAddress,
-                web3j,
-                credentials,
-                gasProvider)
-        val mcContractAddress = lsInstance.committee().sendAsync().get()
-        println("Management Committee contract address: ${mcContractAddress}")
-        val mcInstance = ManagementCommittee.load(
-                mcContractAddress,
-                web3j,
-                credentials,
-                gasProvider)
-
-        // Get the Fabric agent public keys from the Fabric wallet
-        getFabricAgentPublicKeys().flatMap {
+    fun setManagementCommittee(publicKeys: List<String>): Either<Error, TransactionReceipt> = try {
+        println("Submitting management committee with public keys: $publicKeys")
+        ledgerContractAddress.fold({
+            Left(Error("Ethereum Error: Ledger contract failed to initiate"))
+        }, { lcAddress ->
+            val lcInstance = LedgerState.load(
+                    lcAddress,
+                    web3j,
+                    credentials,
+                    gasProvider)
+            // Get the corresponding Ethereum accounts for the public keys
             val ethereumAccounts = (properties["ETHEREUM_ACCOUNTS"] as String)
                     .split(",")
-                    .subList(0, it.size)
+                    .subList(0, publicKeys.size)
+            // Create the management committee instance
+            val mcAddress = lcInstance.committee().sendAsync().get()
+            val mcInstance = ManagementCommittee.load(
+                    mcAddress,
+                    web3j,
+                    credentials,
+                    gasProvider)
             // Submit the setCommittee transaction
-            val txReceipt = mcInstance.setCommittee(it, ethereumAccounts).sendAsync().get()
+            val txReceipt = mcInstance.setCommittee(publicKeys, ethereumAccounts).sendAsync().get()
             // A status of "0x1 indicates a successful transaction
             if (txReceipt.status == "0x1") {
                 println("Successfully set the management commitee: $txReceipt")
@@ -82,7 +81,7 @@ class LedgerStateManager() {
                 println("Ethereum Error: setCommittee transaction failed : $txReceipt")
                 Left(Error("Ethereum Error: setCommittee transaction failed : $txReceipt"))
             }
-        }
+        })
     } catch (e: Exception) {
         println("Ethereum Error: Error setting management committee: ${e.message}\n")
         Left(Error("Ethereum Error: Error setting management committee: ${e.message}"))

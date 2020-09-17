@@ -1,6 +1,8 @@
 package commitment.agent.fabric.client
 
 import arrow.core.*
+import arrow.core.extensions.either.applicative.applicative
+import arrow.core.extensions.list.traverse.traverse
 import com.google.gson.Gson
 import commitment.CommitmentOuterClass
 import io.grpc.ManagedChannelBuilder
@@ -16,6 +18,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
+import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Paths
 import java.security.PrivateKey
@@ -28,7 +31,9 @@ class FabricClient() {
 
     init {
         // First enroll an admin and user
+        // TODO: move this to initialisation script
         enrollAdmin()
+        // TODO: move this to initialisation script
         registerUser()
         println("Attempting to connect to Fabric network")
         // Create a gateway connection
@@ -36,13 +41,19 @@ class FabricClient() {
             gateway = Some(connect())
             println("Connected!")
             network = gateway.map { it.getNetwork("mychannel") }
-            contract = network.map { it.getContract("basic")}
+            contract = network.map { it.getContract("basic") }
         } catch (e: Exception) {
             println("Fabric Error: Error creating network connection: ${e.message}")
         }
     }
 
     fun start() = try {
+        // Send the set of public keys to the Ethereum client to initialise the management committee
+        // TODO: move this to initialisation script
+        getFabricAgentPublicKeys().map {
+            sendCommitteeHelper(it)
+        }
+
         // Get all blocks from block 2 onwards and start listening for new block events
         this.network.map { it.addBlockListener(2, ::handleBlockEvent) }
     } catch (e: Exception) {
@@ -72,7 +83,7 @@ class FabricClient() {
             val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
             Right(result)
         })
-    } catch(e: Exception) {
+    } catch (e: Exception) {
         println("Fabric Error: Error getting state history for key $key: ${e.message}")
         Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
     }
