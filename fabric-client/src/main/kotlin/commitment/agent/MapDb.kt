@@ -5,11 +5,10 @@ import arrow.core.Left
 import arrow.core.Right
 import org.mapdb.DBMaker.fileDB
 import org.mapdb.Serializer
-import org.starcoin.rsa.RSAAccumulator
 
 class MapDb {
-    fun start(key: Int, initialValue: String): Either<Error, Unit> = try {
-        val db = fileDB("file.db")
+    fun start(key: Int, initialValue: String, orgName: String): Either<Error, Unit> = try {
+        val db = fileDB("${orgName}File.db")
                 .fileMmapEnable()
                 .make()
         val map = db
@@ -24,8 +23,8 @@ class MapDb {
         Left(Error("DB Error: Error initialising database ${e.message}\n"))
     }
 
-    fun update(key: Int, value: String): Either<Error, Unit> = try {
-        val db = fileDB("file.db")
+    fun update(key: Int, value: String, orgName: String): Either<Error, Unit> = try {
+        val db = fileDB("${orgName}File.db")
                 .fileMmapEnable()
                 .make()
         val map = db
@@ -40,8 +39,8 @@ class MapDb {
         Left(Error("DB Error: Error updating database ${e.message}\n"))
     }
 
-    fun get(key: Int): Either<Error, String> {
-        val db = fileDB("file.db")
+    fun get(key: Int, orgName: String): Either<Error, String> {
+        val db = fileDB("${orgName}File.db")
                 .fileMmapEnable()
                 .make()
         val map = db

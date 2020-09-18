@@ -9,7 +9,7 @@ build
 wallet/*
 
 # DB
-file.db
+*.db
 
 # Ignore solidity contracts as these are copied from the bulletin-board repo
 ethereum-client/src/main/solidity/*

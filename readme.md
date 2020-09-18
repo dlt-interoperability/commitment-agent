@@ -77,11 +77,6 @@ restart the network.
 
 ## Start the Fabric agent
 
-**Currently only having one agent running at a time is working. It is possible
-to choose between either `org1` or `org2`. Leave off the `LC_ADDRESS` for the
-Ethereum client and include the `INIT="true"` flag when starting up the Ethereum
-and Fabric clients of whichever org agent is started.**
-
 Only one of the Ethereum clients needs to deploy the ledger state contract.
 Start the first peer's Ethereum client, then copy the ledger
 contract address printed and use it when starting the second peer's Ethereum
@@ -161,8 +156,6 @@ Fabric
 
 - Check the `isDelete` flag of the KVWrites and delete the state from the
   accumulator if needed.
-- **Work out how to name the admin user so the CA is happy _and_ there different
-  file names in the wallet.**
 
 RSA Accumulators
 
@@ -172,8 +165,6 @@ RSA Accumulators
   blocks (with signature). Currently, it is triggering publication on every
   block.
 - Function to get state based on key and block height from the peer.
-- **Figure out how the RSA accumulator can be initialised deterministically so it
-  will be the same across all agents.**
 
 Ethereum Client
 

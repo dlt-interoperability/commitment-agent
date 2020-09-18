@@ -110,7 +110,7 @@ class FabricClient(val orgId: String) {
             val hostname = config["HOSTNAME"] as String
             enrollmentRequestTLS.addHost(hostname)
             enrollmentRequestTLS.profile = "tls"
-            val enrollment = caClient.enroll(admin, "adminpw", enrollmentRequestTLS)
+            val enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS)
             val msp = config["MSP"] as String
             val user: Identity = Identities.newX509Identity(msp, enrollment)
             wallet.put(admin, user)
@@ -190,6 +190,7 @@ class FabricClient(val orgId: String) {
     fun handleBlockEvent(blockEvent: BlockEvent) {
         val blockNum = blockEvent.blockNumber.toInt()
         println("Processing block $blockNum")
+        val orgName = config["ORG"] as String
         val kvWrites = blockEvent.transactionEvents
                 // Filter the valid transactions
                 .filter { it.isValid }
@@ -208,10 +209,10 @@ class FabricClient(val orgId: String) {
             val seed1 = (config["SEED1"] as String).toLong()
             val seed2 = (config["SEED2"] as String).toLong()
             val seed3 = (config["SEED3"] as String).toLong()
-           initialiseAccumulator(blockNum, kvWrites, seed1, seed2, seed3)
+           initialiseAccumulator(blockNum, kvWrites, orgName, seed1, seed2, seed3)
         } else {
             // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-            updateAccumulator(blockNum, kvWrites).flatMap { accumulator ->
+            updateAccumulator(blockNum, kvWrites, orgName).flatMap { accumulator ->
                 // Then send the accumulator to the Ethereum client for publishing
                 sendCommitmentHelper(accumulator, blockNum, config)
             }

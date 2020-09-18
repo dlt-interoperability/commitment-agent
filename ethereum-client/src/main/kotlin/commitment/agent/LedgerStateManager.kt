@@ -64,6 +64,8 @@ class LedgerStateManager(var ledgerContractAddress: Option<String>) {
             val ethereumAccounts = (properties["ETHEREUM_ACCOUNTS"] as String)
                     .split(",")
                     .subList(0, publicKeys.size)
+            println("Fabric public keys: $publicKeys")
+            println("Ethereum accounts to be linked with Fabric public keys: $ethereumAccounts")
             // Create the management committee instance
             val mcAddress = lcInstance.committee().sendAsync().get()
             val mcInstance = ManagementCommittee.load(

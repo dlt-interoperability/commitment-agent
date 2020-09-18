@@ -13,6 +13,7 @@ import proof.ProofOuterClass.Proof
 fun initialiseAccumulator(
         blockNum: Int,
         kvWrites: List<KvWrite>,
+        orgName: String,
         seed1: Long,
         seed2: Long,
         seed3: Long
@@ -33,7 +34,7 @@ fun initialiseAccumulator(
 
     // Convert the accumulator to a JSON string to store in the DB
     val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
-        db.start(blockNum, accumulatorJson).map {
+        db.start(blockNum, accumulatorJson, orgName).map {
             accumulator.a.toString()
         }
 } catch (e: Exception) {
@@ -54,11 +55,11 @@ fun initialiseAccumulator(
  * be determined. Finally, the accumulator for the block is stored back in the DB as
  * a JSON string using the block number as the key.
  */
-fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, String> = try {
+fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>, orgName: String): Either<Error, String> = try {
     println("Updating accumulator for blockNum: $blockNum")
     val db = MapDb()
 
-    val eeAccumulator = db.get(blockNum - 1).map {
+    val eeAccumulator = db.get(blockNum - 1, orgName).map {
             Gson().fromJson(it, RSAAccumulator::class.java)
         }
     eeAccumulator.flatMap { accumulator ->
@@ -73,12 +74,12 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Str
 
         // Convert the accumulator to a JSON string to store back in the DB
         val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
-        db.update(blockNum, accumulatorJson).map {
+        db.update(blockNum, accumulatorJson, orgName).map {
             accumulator.a.toString()
         }
     }
 } catch (e: Exception) {
-    println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
+    println("Accumulator Error: Error updating accumulator: ${e.message}")
     Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
 }
 
@@ -98,7 +99,7 @@ fun createProof(
         orgName: String
 ): Either<Error, Proof> {
     val db = MapDb()
-    val proof = db.get(ethCommitment.blockHeight).map {
+    val proof = db.get(ethCommitment.blockHeight, orgName).map {
         Gson().fromJson(it, RSAAccumulator::class.java)
     }.flatMap { accumulator ->
         // Check that the accumulator stored in the DB at that block height matches the
