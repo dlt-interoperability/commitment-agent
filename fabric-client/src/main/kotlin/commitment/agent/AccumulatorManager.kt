@@ -10,6 +10,36 @@ import org.starcoin.rsa.RSAAccumulator
 import org.starcoin.rsa.stringToHashBigInteger
 import proof.ProofOuterClass.Proof
 
+fun initialiseAccumulator(
+        blockNum: Int,
+        kvWrites: List<KvWrite>,
+        seed1: Long,
+        seed2: Long
+): Either<Error, String> = try {
+    println("Initialising the accumulator for blockNum: $blockNum")
+    val db = MapDb()
+
+    // If this is the first block we need to initialise the accumulator
+    val accumulator = RSAAccumulator(seed1, seed2)
+    // Convert each of the KVWrites to a hash and add to the accumulator.
+    // Note that if this is an empty list the accumulator doesn't get updated.
+    val kvHash = kvWrites.map { kvWrite ->
+        val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
+        val kvHash = stringToHashBigInteger(jsonString)
+        // WARNING: this mutates the accumulator
+        accumulator.add(kvHash)
+    }
+
+    // Convert the accumulator to a JSON string to store in the DB
+    val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
+        db.start(blockNum, accumulatorJson).map {
+            accumulator.a.toString()
+        }
+} catch (e: Exception) {
+    println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
+    Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
+}
+
 /**
  * The update accumulator function receives the list of all KVWrites that were
  * present in all the valid transactions in the block. It gets the previous version

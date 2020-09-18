@@ -203,10 +203,17 @@ class FabricClient(val orgId: String) {
                         }
                     }
                 }
-        // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-        updateAccumulator(blockNum, kvWrites).flatMap { accumulator ->
-            // Then send the accumulator to the Ethereum client for publishing
-            sendCommitmentHelper(accumulator, blockNum, config)
+        // If this is the first block streamed (which is block 2), initialise the accumulator
+        if (blockNum == 2) {
+            val seed1 = (config["SEED1"] as String).toLong()
+            val seed2 = (config["SEED2"] as String).toLong()
+           initialiseAccumulator(blockNum, kvWrites,     seed1, seed2)
+        } else {
+            // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
+            updateAccumulator(blockNum, kvWrites).flatMap { accumulator ->
+                // Then send the accumulator to the Ethereum client for publishing
+                sendCommitmentHelper(accumulator, blockNum, config)
+            }
         }
     }
 }
