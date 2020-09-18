@@ -14,13 +14,14 @@ fun initialiseAccumulator(
         blockNum: Int,
         kvWrites: List<KvWrite>,
         seed1: Long,
-        seed2: Long
+        seed2: Long,
+        seed3: Long
 ): Either<Error, String> = try {
     println("Initialising the accumulator for blockNum: $blockNum")
     val db = MapDb()
 
     // If this is the first block we need to initialise the accumulator
-    val accumulator = RSAAccumulator(seed1, seed2)
+    val accumulator = RSAAccumulator(seed1, seed2, seed3)
     // Convert each of the KVWrites to a hash and add to the accumulator.
     // Note that if this is an empty list the accumulator doesn't get updated.
     val kvHash = kvWrites.map { kvWrite ->
@@ -57,15 +58,9 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Str
     println("Updating accumulator for blockNum: $blockNum")
     val db = MapDb()
 
-    val eeAccumulator = if (blockNum == 2) {
-        // If this is the first block we need to initialise the accumulator
-        Right(RSAAccumulator())
-    } else {
-        // Otherwise get the accumulator for the previous block from the DB
-        db.get(blockNum - 1).map {
+    val eeAccumulator = db.get(blockNum - 1).map {
             Gson().fromJson(it, RSAAccumulator::class.java)
         }
-    }
     eeAccumulator.flatMap { accumulator ->
         // Convert each of the KVWrites to a hash and add to the accumulator.
         // Note that if this is an empty list the accumulator doesn't get updated.
@@ -78,14 +73,8 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>): Either<Error, Str
 
         // Convert the accumulator to a JSON string to store back in the DB
         val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
-        if (blockNum == 2) {
-            db.start(blockNum, accumulatorJson).map {
-                accumulator.a.toString()
-            }
-        } else {
-            db.update(blockNum, accumulatorJson).map {
-                accumulator.a.toString()
-            }
+        db.update(blockNum, accumulatorJson).map {
+            accumulator.a.toString()
         }
     }
 } catch (e: Exception) {

@@ -44,6 +44,10 @@ the following:
   (`COMMITMENT_GRPC_SERVER_HOST`) and the path to the peer organization's CA
   certificate (`CA_PEM_PATH`).
 - Other peer-specific variables (e.g. `MSP` id, `AFFILIATION`, etc.).
+- The seeds used for trusted setup of the accumulator. These seeds are used to
+  create the large random primes `p` and `q` that are used to generate the RSA
+  modulus `N` for the accumulator, and for random base of the accumulator `A0`.
+  These seeds can be any `Long`, but must be the same between all agents.
 
 ### Clone the bulletin board repo
 
