@@ -10,7 +10,6 @@ import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
-import java.io.FileInputStream
 import java.nio.file.Paths
 import java.security.PrivateKey
 import java.util.*
@@ -22,7 +21,7 @@ class FabricClient(val orgId: String) {
     val config = Properties()
 
     init {
-        FileInputStream("${System.getProperty("user.dir")}/fabric-client/src/main/resources/${orgId}config.properties")
+        this::class.java.getResourceAsStream("/${orgId}config.properties")
                 .use { config.load(it) }
         // First enroll an admin and user
         enrollAdmin()

@@ -8,28 +8,28 @@ import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.http.HttpService
 import org.web3j.tx.gas.StaticGasProvider
-import java.io.FileInputStream
 import java.math.BigInteger
 import java.util.Properties
 
-class LedgerStateManager(var ledgerContractAddress: Option<String>) {
+class LedgerStateManager(var ledgerContractAddress: Option<String>, orgName: String) {
     // This defaults to http://localhost:8545/
     // TODO add this to config
     val web3j = Web3j.build(HttpService())
     val gasProvider = StaticGasProvider(BigInteger.valueOf(20000000000),BigInteger.valueOf(6721975))
-    val properties = Properties()
+    val config = Properties()
     var credentials: Credentials
 
     init {
-        FileInputStream("${System.getProperty("user.dir")}/ethereum-client/src/main/resources/config.properties")
-                .use { properties.load(it) }
+        object {}::class.java.getResourceAsStream("/${orgName}config.properties")
+                .use { config.load(it) }
+
         // By default his is the private key of the first account created by the ganache-cli deterministic network
-        val privateKey = (properties["ETHEREUM_PRIVATE_KEY"] as String)
+        val privateKey = (config["ETHEREUM_PRIVATE_KEY"] as String)
         credentials = Credentials.create(privateKey)
         if (ledgerContractAddress.isEmpty()) {
             ledgerContractAddress = deployLedgerStateContract()
                     .flatMap { ledgerContractAddress ->
-                        val quorum = (properties["POLICY_QUORUM"] as String).toInt()
+                        val quorum = (config["POLICY_QUORUM"] as String).toInt()
                         setPolicy(ledgerContractAddress, quorum).map { ledgerContractAddress }
                     }.fold({ None }, { Some(it) })
         }
@@ -61,7 +61,7 @@ class LedgerStateManager(var ledgerContractAddress: Option<String>) {
                     credentials,
                     gasProvider)
             // Get the corresponding Ethereum accounts for the public keys
-            val ethereumAccounts = (properties["ETHEREUM_ACCOUNTS"] as String)
+            val ethereumAccounts = (config["ETHEREUM_ACCOUNTS"] as String)
                     .split(",")
                     .subList(0, publicKeys.size)
             println("Fabric public keys: $publicKeys")
