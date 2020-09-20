@@ -115,7 +115,7 @@ class LedgerStateManager(var ledgerContractAddress: Option<String>, orgName: Str
         Left(Error("Ethereum Error: Error setting ledger state policy: ${e.message}"))
     }
 
-    fun postCommitment(commitment: String, blockHeight: Int): Either<Error, TransactionReceipt> = try {
+    fun postCommitment(commitment: String, rollingHash: String, blockHeight: Int): Either<Error, TransactionReceipt> = try {
         println("Submitting commitment for block height $blockHeight")
         ledgerContractAddress.fold({
             Left(Error("Ethereum Error: Ledger contract failed to initiate"))
@@ -125,20 +125,24 @@ class LedgerStateManager(var ledgerContractAddress: Option<String>, orgName: Str
                     web3j,
                     credentials,
                     gasProvider)
-            val commitmentByteArray = stringToBytes32ByteArray(commitment)
-            commitmentByteArray.flatMap { byteArray ->
-                val txReceipt = ledgerState
-                        .postCommitment(byteArray, BigInteger.valueOf(blockHeight.toLong()))
-                        .sendAsync()
-                        .get()
-                // A status of "0x1 indicates a successful transaction
-                if (txReceipt.status == "0x1") {
-                    println("Successfully submitted the commitment: $txReceipt")
-                    println("Ledger state contract address is $ledgerContractAddress\n")
-                    Right(txReceipt)
-                } else {
-                    println("Ethereum Error: submitting the commitment failed: ${txReceipt}\n")
-                    Left(Error("Ethereum Error: submitting the commitment failed: ${txReceipt}"))
+            stringToBytes32ByteArray(commitment).flatMap { commitmentByteArray ->
+                stringToBytes32ByteArray(rollingHash).flatMap { rollingHashByteArray ->
+                    val txReceipt = ledgerState
+                            .postCommitment(
+                                    commitmentByteArray,
+                                    rollingHashByteArray,
+                                    BigInteger.valueOf(blockHeight.toLong()))
+                            .sendAsync()
+                            .get()
+                    // A status of "0x1 indicates a successful transaction
+                    if (txReceipt.status == "0x1") {
+                        println("Successfully submitted the commitment: $txReceipt")
+                        println("Ledger state contract address is $ledgerContractAddress\n")
+                        Right(txReceipt)
+                    } else {
+                        println("Ethereum Error: submitting the commitment failed: ${txReceipt}\n")
+                        Left(Error("Ethereum Error: submitting the commitment failed: ${txReceipt}"))
+                    }
                 }
             }
         })

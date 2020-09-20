@@ -54,8 +54,7 @@ class GrpcService(val ledgerStateManager: LedgerStateManager) : CommitmentServic
                 .setStatus(CommitmentOuterClass.Ack.STATUS.OK)
                 .setMessage("Received commitment for block ${request.blockHeight}")
                 .build()
-        // TODO: Add the rolling hash in here when the contract has been updated to accept it.
-        GlobalScope.launch { ledgerStateManager.postCommitment(request.accumulator, request.blockHeight) }
+        GlobalScope.launch { ledgerStateManager.postCommitment(request.accumulator, request.rollingHash, request.blockHeight) }
         println("Sending back ack: $ack\n")
         return ack
     }
