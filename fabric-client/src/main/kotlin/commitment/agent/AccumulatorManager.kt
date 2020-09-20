@@ -68,8 +68,13 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>, orgName: String): 
         val kvHash = kvWrites.map { kvWrite ->
             val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
             val kvHash = stringToHashBigInteger(jsonString)
-            // WARNING: this mutates the accumulator
-            accumulator.add(kvHash)
+            if (kvWrite.isDelete) {
+                // WARNING: this mutates the accumulator
+                accumulator.delete(kvHash)
+            } else {
+                // WARNING: this mutates the accumulator
+                accumulator.add(kvHash)
+            }
         }
 
         // Convert the accumulator to a JSON string to store back in the DB

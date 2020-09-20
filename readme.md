@@ -154,9 +154,6 @@ Example Gists:
 
 Fabric
 
-- Check the `isDelete` flag of the KVWrites and delete the state from the
-  accumulator if needed.
-
 RSA Accumulators
 
 - Add a config file to store path to local Maven repository for the
