@@ -7,14 +7,15 @@ service CommitmentService {
   rpc SendCommitment(Commitment) returns (Ack) {}
 }
 
-message Committee {
-  repeated string publicKeys = 1;
-}
+message Committee { repeated string publicKeys = 1; }
 
 message Commitment {
   // String representation of the accumulator BigInteger
   string accumulator = 1;
-  int32 block_height = 2;
+  // The rolling hash is a Base64 string representation of the SHA-256
+  // hash of the the previous rolling hash + the new accumulator.
+  string rollingHash = 2;
+  int32 block_height = 3;
 }
 
 message Ack {
