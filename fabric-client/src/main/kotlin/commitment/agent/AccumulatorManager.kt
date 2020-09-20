@@ -2,7 +2,6 @@ package commitment.agent.fabric.client
 
 import arrow.core.Either
 import arrow.core.Left
-import arrow.core.Right
 import arrow.core.flatMap
 import com.google.gson.Gson
 import commitment.CommitmentOuterClass
@@ -88,8 +87,6 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>, orgName: String): 
     Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
 }
 
-fun getState(key: String): String = "not yet implemented"
-
 /**
  * The createProof is triggered by the gRPC server requestState function which is used
  * by the external client to get a state and proof of some Fabric ledger state at a particular
@@ -111,26 +108,30 @@ fun createProof(
         // accumulator the external client sent for the block height
         if (accumulator.a.toString().contains(ethCommitment.accumulator)) {
             val fabricClient = FabricClient(orgName)
-            // TODO: Need to somehow relate this history with block height
             fabricClient.getStateHistory(key).flatMap { history ->
-                // TODO: Until getting state at a block height is figured out, just assume the latest value is the required one.
-                val latestKeyModification = history.first()
-                // Recreate the kvWrite that was used in the accumulator
-                val kvWrite = KvWrite(
-                        key = key,
-                        isDelete = latestKeyModification.isDelete,
-                        value = latestKeyModification.value
-                )
-                val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
-                val kvHash = stringToHashBigInteger(kvJson)
-                accumulator.createProof(kvHash).map { proof ->
-                    Proof.newBuilder()
-                            .setState(kvJson)
-                            .setNonce(proof.nonce.toString())
-                            .setProof(proof.proof.toString())
-                            .setA(accumulator.a.toString())
-                            .setN(proof.n.toString())
-                            .build()
+                // Find the first state in the history that is present in the accumulator.
+                val keyModification = history.find { isStateInAccumulator(key, it, accumulator) }
+                if (keyModification != null) {
+                    // Recreate the kvWrite that was used in the accumulator
+                    val kvWrite = KvWrite(
+                            key = key,
+                            isDelete = keyModification.isDelete,
+                            value = keyModification.value
+                    )
+                    val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
+                    val kvHash = stringToHashBigInteger(kvJson)
+                    accumulator.createProof(kvHash).map { proof ->
+                        Proof.newBuilder()
+                                .setState(kvJson)
+                                .setNonce(proof.nonce.toString())
+                                .setProof(proof.proof.toString())
+                                .setA(accumulator.a.toString())
+                                .setN(proof.n.toString())
+                                .build()
+                    }
+                } else {
+                    println("Request Error: No state with that key was found.\n")
+                    Left(Error("Request Error: No state with that key was found."))
                 }
             }
         } else {
@@ -143,3 +144,15 @@ fun createProof(
 }
 
 data class KvWrite(val key: String, val value: String, val isDelete: Boolean)
+
+fun isStateInAccumulator(key: String, keyModification: KeyModification, accumulator: RSAAccumulator): Boolean {
+    // Recreate the kvWrite that was used in the accumulator
+    val kvWrite = KvWrite(
+            key = key,
+            isDelete = keyModification.isDelete,
+            value = keyModification.value
+    )
+    val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
+    val kvHash = stringToHashBigInteger(kvJson)
+    return accumulator.getNonceOrNull(kvHash) != null
+}

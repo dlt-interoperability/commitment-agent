@@ -161,7 +161,6 @@ RSA Accumulators
 - Update function should trigger the Ethereum publication function every _k_
   blocks (with signature). Currently, it is triggering publication on every
   block.
-- Function to get state based on key and block height from the peer.
 
 Ethereum Client
 
