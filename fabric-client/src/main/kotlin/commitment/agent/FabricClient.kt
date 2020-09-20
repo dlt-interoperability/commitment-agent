@@ -21,25 +21,28 @@ class FabricClient(val orgId: String) {
     val config = Properties()
 
     init {
+        // Load the config properties from the file in src/main/resources
         this::class.java.getResourceAsStream("/${orgId}config.properties")
                 .use { config.load(it) }
         // First enroll an admin and user
         enrollAdmin()
         registerUser()
-        println("Attempting to connect to Fabric network")
         // Create a gateway connection
         try {
+            println("Attempting to connect to Fabric network")
             gateway = Some(connect())
             println("Connected!")
-            network = gateway.map { it.getNetwork("mychannel") }
-            contract = network.map { it.getContract("basic") }
+            network = gateway.map { it.getNetwork(config["CHANNEL"] as String) }
+            contract = network.map { it.getContract(config["CHAINCODE"] as String) }
         } catch (e: Exception) {
             println("Fabric Error: Error creating network connection: ${e.message}")
         }
     }
 
     fun start() = try {
-        // Get all blocks from block 2 onwards and start listening for new block events
+        // The first block that is streamable from the Fabric peer is block 2.
+        // Get all blocks from block 2 onwards and start listening for new block events.
+        // All block events are processed by the handleBlockEvent function.
         this.network.map { it.addBlockListener(2, ::handleBlockEvent) }
     } catch (e: Exception) {
         println("Fabric Error: Error creating block listener: ${e.message}")
@@ -55,45 +58,6 @@ class FabricClient(val orgId: String) {
         Left(Error("Fabric Error: Error creating block listener: ${e.message}"))
     }
 
-    fun getState(key: String): Either<Error, String> = try {
-        contract.fold({
-            println("Fabric Error: Error getting contract")
-            Left(Error("Fabric Error: Error getting contract"))
-        }, {
-            val resultJSON = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
-            val result = Gson().fromJson(resultJSON, GetStateResult::class.java)
-            Right(result.data.toString(Charsets.UTF_8))
-        })
-    } catch (e: Exception) {
-        println("Fabric Error: Error getting state $key: ${e.message}")
-        Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
-    }
-
-    fun getStateHistory(key: String): Either<Error, List<KeyModification>> = try {
-        contract.fold({
-            println("Fabric Error: Error getting contract")
-            Left(Error("Fabric Error: Error getting contract"))
-        }, {
-            val resultJSON = it.evaluateTransaction("GetHistoryForKey", key).toString(Charsets.UTF_8)
-            val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
-            Right(result)
-        })
-    } catch (e: Exception) {
-        println("Fabric Error: Error getting state history for key $key: ${e.message}")
-        Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
-    }
-
-    fun createCaClient(): HFCAClient {
-        val props = Properties()
-        props["pemFile"] = config["CA_PEM_PATH"]
-        props["allowAllHostNames"] = "true"
-        val caUrl = config["CA_URL"] as String
-        val caClient = HFCAClient.createNewInstance(caUrl, props)
-        val cryptoSuite = CryptoSuiteFactory.getDefault().cryptoSuite
-        caClient.cryptoSuite = cryptoSuite
-        return caClient
-    }
-
     fun enrollAdmin() {
         val caClient = createCaClient()
         // Create a wallet for managing identities
@@ -103,7 +67,6 @@ class FabricClient(val orgId: String) {
         val admin = config["ADMIN"] as String
         if (wallet[admin] != null) {
             println("An identity for the admin user '$admin' already exists in the wallet")
-            return
         } else {
             val enrollmentRequestTLS = EnrollmentRequest()
             val hostname = config["HOSTNAME"] as String
@@ -126,39 +89,50 @@ class FabricClient(val orgId: String) {
         val username = config["USER"] as String
         if (wallet[username] != null) {
             println("An identity for the user '$username' already exists in the wallet")
-            return
-        }
-        val adminName = config["ADMIN"] as String
-        val adminIdentity = wallet[adminName] as X509Identity
-        if (adminIdentity == null) {
-            println("'$adminName' needs to be enrolled and added to the wallet first")
-            return
-        }
-        val affiliation = config["AFFILIATION"] as String
-        val msp = config["MSP"] as String
-        val admin: User = object : User {
-            override fun getName(): String = adminName
-            override fun getRoles(): Set<String> = setOf()
-            override fun getAccount(): String = ""
-            override fun getAffiliation(): String = affiliation
-            override fun getEnrollment(): Enrollment {
-                return object : Enrollment {
-                    override fun getKey(): PrivateKey = adminIdentity.privateKey
-                    override fun getCert(): String = Identities.toPemString(adminIdentity.certificate)
+        } else {
+            val adminName = config["ADMIN"] as String
+            val adminIdentity: X509Identity? = wallet[adminName] as X509Identity
+            if (adminIdentity == null) {
+                println("'$adminName' needs to be enrolled and added to the wallet first")
+            } else {
+                val affiliation = config["AFFILIATION"] as String
+                val msp = config["MSP"] as String
+                val admin: User = object : User {
+                    override fun getName(): String = adminName
+                    override fun getRoles(): Set<String> = setOf()
+                    override fun getAccount(): String = ""
+                    override fun getAffiliation(): String = affiliation
+                    override fun getEnrollment(): Enrollment {
+                        return object : Enrollment {
+                            override fun getKey(): PrivateKey = adminIdentity.privateKey
+                            override fun getCert(): String = Identities.toPemString(adminIdentity.certificate)
+                        }
+                    }
+                    override fun getMspId(): String = msp
                 }
-            }
-            override fun getMspId(): String = msp
-        }
 
-        // Register the user, enroll the user, and import the new identity into the wallet.
-        val registrationRequest = RegistrationRequest(username)
-        registrationRequest.affiliation = affiliation
-        registrationRequest.enrollmentID = username
-        val enrollmentSecret = caClient.register(registrationRequest, admin)
-        val enrollment = caClient.enroll(username, enrollmentSecret)
-        val user: Identity = Identities.newX509Identity(msp, enrollment)
-        wallet.put(username, user)
-        println("Successfully enrolled user '$username' and imported it into the wallet")
+                // Register the user, enroll the user, and import the new identity into the wallet.
+                val registrationRequest = RegistrationRequest(username)
+                registrationRequest.affiliation = affiliation
+                registrationRequest.enrollmentID = username
+                val enrollmentSecret = caClient.register(registrationRequest, admin)
+                val enrollment = caClient.enroll(username, enrollmentSecret)
+                val user = Identities.newX509Identity(msp, enrollment)
+                wallet.put(username, user)
+                println("Successfully enrolled user '$username' and imported it into the wallet")
+            }
+        }
+    }
+
+    fun createCaClient(): HFCAClient {
+        val props = Properties()
+        props["pemFile"] = config["CA_PEM_PATH"]
+        props["allowAllHostNames"] = "true"
+        val caUrl = config["CA_URL"] as String
+        val caClient = HFCAClient.createNewInstance(caUrl, props)
+        val cryptoSuite = CryptoSuiteFactory.getDefault().cryptoSuite
+        caClient.cryptoSuite = cryptoSuite
+        return caClient
     }
 
     // Helper function for connecting to the gateway
@@ -180,11 +154,9 @@ class FabricClient(val orgId: String) {
 
     /**
      * The handleBlockEvent function processes every block that's received from the Fabric
-     * peer to determine how the accumulator should be updated. If the block is a config
-     * (anything else?) block, the accumulator should not be modified, but a new entry of the
-     * accumulator should be stored in the accumulator DB for that block height. Otherwise,
-     * the block will contain updates to the application state in the Fabric ledger, and the
-     * accumulator should be updated accordingly.
+     * peer to determine how the accumulator should be updated. The accumulator is updated with
+     * all of the KVWrites across all the valid transactions in the block. If there are no KVWrites
+     * the accumulator is not updated but stored as-is under a new block height.
      */
     fun handleBlockEvent(blockEvent: BlockEvent) {
         val blockNum = blockEvent.blockNumber.toInt()
@@ -216,6 +188,47 @@ class FabricClient(val orgId: String) {
                 sendCommitmentHelper(accumulator, blockNum, config)
             }
         }
+    }
+
+    /**
+     * The getState function is used to retrieve a state from the Fabric ledger on request from
+     * an external client. This assumes that the version of the state corresponding to the accumulator
+     * the external client has requested is the latest version of the state on the ledger. This is
+     * obviously not always going to be a valid assumption.
+     */
+    fun getState(key: String): Either<Error, String> = try {
+        contract.fold({
+            println("Fabric Error: Error getting chaincode contract")
+            Left(Error("Fabric Error: Error getting chaincode contract"))
+        }, {
+            val resultJSON = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
+            val result = Gson().fromJson(resultJSON, GetStateResult::class.java)
+            Right(result.data.toString(Charsets.UTF_8))
+        })
+    } catch (e: Exception) {
+        println("Fabric Error: Error getting state $key: ${e.message}")
+        Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
+    }
+
+    /**
+     * The getStateHistory function is used to retrieve a state from the Fabric ledger on request from
+     * an external client. This function returns every version of the state that has existed. This means
+     * the caller of the function (createProof function in AccumulatorManager) can check if the
+     * latest version of the state is present in the accumulator version the external client has
+     * requested. If not, it can check the next oldest version of the state until a match is found.
+     */
+    fun getStateHistory(key: String): Either<Error, List<KeyModification>> = try {
+        contract.fold({
+            println("Fabric Error: Error getting chaincode contract")
+            Left(Error("Fabric Error: Error getting chaincode contract"))
+        }, {
+            val resultJSON = it.evaluateTransaction("GetHistoryForKey", key).toString(Charsets.UTF_8)
+            val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
+            Right(result)
+        })
+    } catch (e: Exception) {
+        println("Fabric Error: Error getting state history for key $key: ${e.message}")
+        Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
     }
 }
 

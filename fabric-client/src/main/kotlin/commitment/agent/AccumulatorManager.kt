@@ -107,18 +107,14 @@ fun createProof(
         if (accumulator.a.toString().contains(ethCommitment.accumulator)) {
             val fabricClient = FabricClient(orgName)
             // TODO: Need to somehow relate this history with block height
-            fabricClient.getStateHistory(key).map { history ->
-                history.map {
-                    println("Key modification: $it")
-                }
-            }
-            // TODO: Until getting state at a block height is figured out, just assume the latest value is the required one.
-            fabricClient.getState(key).flatMap { value ->
+            fabricClient.getStateHistory(key).flatMap { history ->
+                // TODO: Until getting state at a block height is figured out, just assume the latest value is the required one.
+                val latestKeyModification = history.first()
                 // Recreate the kvWrite that was used in the accumulator
                 val kvWrite = KvWrite(
                         key = key,
-                        isDelete = false,
-                        value = value
+                        isDelete = latestKeyModification.isDelete,
+                        value = latestKeyModification.value
                 )
                 val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
                 val kvHash = stringToHashBigInteger(kvJson)
