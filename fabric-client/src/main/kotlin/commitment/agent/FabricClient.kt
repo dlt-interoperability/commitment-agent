@@ -183,9 +183,9 @@ class FabricClient(val orgId: String) {
            initialiseAccumulator(blockNum, kvWrites, orgName, seed1, seed2, seed3)
         } else {
             // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-            updateAccumulator(blockNum, kvWrites, orgName).flatMap { accumulator ->
+            updateAccumulator(blockNum, kvWrites, orgName).flatMap { accumulatorWrapper ->
                 // Then send the accumulator to the Ethereum client for publishing
-                sendCommitmentHelper(accumulator, blockNum, config)
+                sendCommitmentHelper(accumulatorWrapper, blockNum, config)
             }
         }
     }

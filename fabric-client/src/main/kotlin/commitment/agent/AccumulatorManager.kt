@@ -8,6 +8,8 @@ import commitment.CommitmentOuterClass
 import org.starcoin.rsa.RSAAccumulator
 import org.starcoin.rsa.stringToHashBigInteger
 import proof.ProofOuterClass.Proof
+import java.security.MessageDigest
+import java.util.Base64
 
 fun initialiseAccumulator(
         blockNum: Int,
@@ -16,7 +18,7 @@ fun initialiseAccumulator(
         seed1: Long,
         seed2: Long,
         seed3: Long
-): Either<Error, String> = try {
+): Either<Error, AccumulatorWrapper> = try {
     println("Initialising the accumulator for blockNum: $blockNum")
     val db = MapDb()
 
@@ -31,13 +33,17 @@ fun initialiseAccumulator(
         accumulator.add(kvHash)
     }
 
-    // Convert the accumulator to a JSON string to store in the DB
-    val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
-        db.start(blockNum, accumulatorJson, orgName).map {
-            accumulator.a.toString()
-        }
+    // Initialise the rolling hash for the accumulator
+    val digest = MessageDigest.getInstance("SHA-256").digest(accumulator.a.toByteArray())
+    val rollingHash = Base64.getEncoder().encodeToString(digest)
+    println("Rolling hash: $rollingHash")
+
+    // Convert the accumulator + hash wrapper type to a JSON string and store in the DB
+    val accumulatorWrapper = AccumulatorWrapper(accumulator, rollingHash)
+    val accumulatorWrapperJson = Gson().toJson(accumulatorWrapper, AccumulatorWrapper::class.java)
+    db.start(blockNum, accumulatorWrapperJson, orgName).map { accumulatorWrapper }
 } catch (e: Exception) {
-    println("Accumulator Error: Error updating accumulator: ${e.stackTrace}")
+    println("Accumulator Error: Error updating accumulator: ${e.message}")
     Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
 }
 
@@ -54,14 +60,18 @@ fun initialiseAccumulator(
  * be determined. Finally, the accumulator for the block is stored back in the DB as
  * a JSON string using the block number as the key.
  */
-fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>, orgName: String): Either<Error, String> = try {
+fun updateAccumulator(
+        blockNum: Int,
+        kvWrites: List<KvWrite>,
+        orgName: String
+): Either<Error, AccumulatorWrapper> = try {
     println("Updating accumulator for blockNum: $blockNum")
     val db = MapDb()
 
-    val eeAccumulator = db.get(blockNum - 1, orgName).map {
-            Gson().fromJson(it, RSAAccumulator::class.java)
-        }
-    eeAccumulator.flatMap { accumulator ->
+    db.get(blockNum - 1, orgName).map {
+            Gson().fromJson(it, AccumulatorWrapper::class.java)
+        }.flatMap { accumulatorWrapper ->
+        val accumulator = accumulatorWrapper.accumulator
         // Convert each of the KVWrites to a hash and add to the accumulator.
         // Note that if this is an empty list the accumulator doesn't get updated.
         val kvHash = kvWrites.map { kvWrite ->
@@ -76,11 +86,17 @@ fun updateAccumulator(blockNum: Int, kvWrites: List<KvWrite>, orgName: String): 
             }
         }
 
-        // Convert the accumulator to a JSON string to store back in the DB
-        val accumulatorJson = Gson().toJson(accumulator, RSAAccumulator::class.java)
-        db.update(blockNum, accumulatorJson, orgName).map {
-            accumulator.a.toString()
-        }
+        // Update the rolling hash for the accumulator
+        val digest = MessageDigest
+                .getInstance("SHA-256")
+                .digest((accumulatorWrapper.rollingHash + accumulator.a).toByteArray())
+        val rollingHash = Base64.getEncoder().encodeToString(digest)
+        println("Rolling hash: $rollingHash")
+
+        // Convert the accumulator + hash wrapper type to a JSON string and  store in the DB
+        val newAccumulatorWrapper = AccumulatorWrapper(accumulator, rollingHash)
+        val accumulatorWrapperJson = Gson().toJson(newAccumulatorWrapper, AccumulatorWrapper::class.java)
+        db.update(blockNum, accumulatorWrapperJson, orgName).map { accumulatorWrapper }
     }
 } catch (e: Exception) {
     println("Accumulator Error: Error updating accumulator: ${e.message}")
@@ -102,8 +118,9 @@ fun createProof(
 ): Either<Error, Proof> {
     val db = MapDb()
     val proof = db.get(ethCommitment.blockHeight, orgName).map {
-        Gson().fromJson(it, RSAAccumulator::class.java)
-    }.flatMap { accumulator ->
+        Gson().fromJson(it, AccumulatorWrapper::class.java)
+    }.flatMap { accumulatorWrapper ->
+        val accumulator = accumulatorWrapper.accumulator
         // Check that the accumulator stored in the DB at that block height matches the
         // accumulator the external client sent for the block height
         if (accumulator.a.toString().contains(ethCommitment.accumulator)) {
@@ -143,7 +160,6 @@ fun createProof(
     return proof
 }
 
-data class KvWrite(val key: String, val value: String, val isDelete: Boolean)
 
 fun isStateInAccumulator(key: String, keyModification: KeyModification, accumulator: RSAAccumulator): Boolean {
     // Recreate the kvWrite that was used in the accumulator
@@ -156,3 +172,6 @@ fun isStateInAccumulator(key: String, keyModification: KeyModification, accumula
     val kvHash = stringToHashBigInteger(kvJson)
     return accumulator.getNonceOrNull(kvHash) != null
 }
+
+data class KvWrite(val key: String, val value: String, val isDelete: Boolean)
+data class AccumulatorWrapper(val accumulator: RSAAccumulator, val rollingHash: String)
