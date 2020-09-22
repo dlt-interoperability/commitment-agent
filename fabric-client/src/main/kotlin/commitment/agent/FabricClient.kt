@@ -2,6 +2,8 @@ package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
@@ -50,7 +52,7 @@ class FabricClient(val orgId: String) {
 
     fun initialize() = try {
         // Send the set of public keys to the Ethereum client to initialise the management committee
-        getFabricAgentPublicKeys().flatMap {
+        getFabricAgentPublicKeys().map {
             sendCommitteeHelper(it, config)
         }
     } catch (e: Exception) {
@@ -183,9 +185,11 @@ class FabricClient(val orgId: String) {
            initialiseAccumulator(blockNum, kvWrites, orgName, seed1, seed2, seed3)
         } else {
             // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-            updateAccumulator(blockNum, kvWrites, orgName).flatMap { accumulatorWrapper ->
+            updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
                 // Then send the accumulator to the Ethereum client for publishing
-                sendCommitmentHelper(accumulatorWrapper, blockNum, config)
+                GlobalScope.launch {
+                    sendCommitmentHelper(accumulatorWrapper, blockNum, config)
+                }
             }
         }
     }

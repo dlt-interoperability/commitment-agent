@@ -44,13 +44,10 @@ fun sendCommitteeHelper(publicKeys: List<String>, config: Properties) = try {
     val committeeBuilder = CommitmentOuterClass.Committee.newBuilder()
     publicKeys.map { committeeBuilder.addPublicKeys(it) }
     val committee = committeeBuilder.build()
-    runBlocking {
+    GlobalScope.launch {
         val ack = async { client.sendCommittee(committee) }.await()
-        if (ack.status == CommitmentOuterClass.Ack.STATUS.OK) {
-            Right(Unit)
-        } else {
+        if (ack.status != CommitmentOuterClass.Ack.STATUS.OK) {
             println("Error sending management committee to Ethereum client: ${ack.message}\n")
-            Left(Error("Error sending management committee to Ethereum client: ${ack.message}\n"))
         }
     }
 } catch (e: Exception) {
@@ -71,13 +68,10 @@ fun sendCommitmentHelper(accumulatorWrapper: AccumulatorWrapper, blockNum: Int, 
             .setRollingHash(accumulatorWrapper.rollingHash)
             .setBlockHeight(blockNum)
             .build()
-    runBlocking {
+    GlobalScope.launch {
         val ack = async { client.sendCommitment(commitment) }.await()
-        if (ack.status == CommitmentOuterClass.Ack.STATUS.OK) {
-            Right(Unit)
-        } else {
+        if (ack.status != CommitmentOuterClass.Ack.STATUS.OK) {
             println("Error sending accumulator to Ethereum client: ${ack.message}\n")
-            Left(Error("Error sending accumulator to Ethereum client: ${ack.message}\n"))
         }
     }
 } catch (e: Exception) {
