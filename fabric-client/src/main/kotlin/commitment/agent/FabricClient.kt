@@ -226,7 +226,8 @@ class FabricClient(val orgId: String) {
             println("Fabric Error: Error getting chaincode contract")
             Left(Error("Fabric Error: Error getting chaincode contract"))
         }, {
-            val resultJSON = it.evaluateTransaction("GetHistoryForKey", key).toString(Charsets.UTF_8)
+            val queryHistoryChaincodeFn = config["QUERY_HISTORY_CC_FN"] as String
+            val resultJSON = it.evaluateTransaction(queryHistoryChaincodeFn, key).toString(Charsets.UTF_8)
             val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
             Right(result)
         })

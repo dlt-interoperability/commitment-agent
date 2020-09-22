@@ -43,6 +43,16 @@ the following:
 - The path to the connection json file of the peer
   (`COMMITMENT_GRPC_SERVER_HOST`) and the path to the peer organization's CA
   certificate (`CA_PEM_PATH`).
+- The chaincode installed on the network must have a function that returns the
+  result of the `GetHistoryByKey` stub function. This allows the agent to query
+  the peer for the history of the state requested by the external client to find
+  the version that was included in the version of the accumulator they requested
+  for. The name of this function should be provided in the `QUERY_HISTORY_CC_FN`
+  variable.
+- The `ORG` variable is used to name the DB file that the accumulator is stored
+  in. It should be consistent with the name used when naming the config file,
+  to start the fabric-client and the ethereum-client, and when specifying the
+  org to connect to as the external-client.
 - Other peer-specific variables (e.g. `MSP` id, `AFFILIATION`, etc.).
 - The seeds used for trusted setup of the accumulator. These seeds are used to
   create the large random primes `p` and `q` that are used to generate the RSA
@@ -59,10 +69,15 @@ project.
 
 ### Start the Fabric network
 
-Please use the example [Fabric
-network](https://github.com/dlt-interoperability/fabric-network) that comes
-complete with chaincode and application. Start the Fabric network and deploy and
-invoke the chaincode with:
+This Fabric agent can be used with any Fabric network as long as the
+[appropriate config files](#update-the-config-properties) have been created and
+the installed chaincode has implemented a function that returns the result of
+the `GetHistoryByKey` stub function. Examples of how to implement this
+stub function is shown in the [JavaScript Gist](https://gist.github.com/airvin/f9ea089ed5e9658f962ac8e77aedff6d)
+and [Go Gist](https://gist.github.com/airvin/cfae11911070c08fc7ce0e8a797d0015). An
+example [Fabric network](https://github.com/dlt-interoperability/fabric-network)
+is also available that comes complete with chaincode and application. Start this
+example Fabric network and deploy and invoke the chaincode with:
 
 ```
 make start
@@ -117,7 +132,9 @@ clone the repo, update path to local Maven repository and build the binary with:
 ./gradlew installDist
 ```
 
-The command has the structure: `get-proof <state-key> <ledger-state-contract-address> <fabric-org-id>`. For example:
+The command has the structure: `get-proof <state-key> <ledger-state-contract-address> <fabric-org-id>`. The state key is the key for
+any state that exists in the Fabric network's ledger. The org id needs to be the
+same as the org id used to start the ethereum and fabric clients. For example:
 
 ```
 ./build/install/external-client/bin/external-client get-proof key1 0xe78a0f7e598cc8b0bb87894b0f60dd2a88d6a8ab org1
