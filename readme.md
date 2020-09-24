@@ -15,6 +15,11 @@ This project has two modules:
    network to publish commitments. It runs a gRPC server to receive commitments
    from the Fabric process.
 
+A very rough architecture of the system is shown below. Some of the variables
+required to be set in the config files are shown in green.
+
+![architecture](images/architecture.png)
+
 ## Prerequisites
 
 ### Build the RSA accumulator library and publish to MavenLocal
@@ -235,3 +240,11 @@ RSA Accumulators
 Ethereum Client
 
 - Fix the type of the commitment on the bulletin board to fit the entire commitment
+
+General
+
+- Fix the architecture diagram
+- Add sequence diagrams for
+  - Setting up management committee
+  - Updating and publishing commitment
+  - Making request
