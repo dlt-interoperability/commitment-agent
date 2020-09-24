@@ -31,41 +31,91 @@ repository. Follow instructions in the repo to do this. **Change line 21 in the
 There needs to be a config file corresponding to each agent that will be
 connecting to a Fabric peer. The
 `fabric-client/src/main/resources/config.properties` file can be used as a
-template to a new file called `<orgId>config.properties`. Update the file with
-the following:
+template to a new file called `<orgId>config.properties`. The file needs to be
+updated with the correct information. Take extra special care with those in
+bold.
 
 - The host and port of the gRPC server that will be running to receive state and
   proof requests from the external client. (`STATE_PROOF_GRPC_SERVER_HOST` and
-  `STATE_PROOF_GRPC_SERVER_PORT`).
+  **`STATE_PROOF_GRPC_SERVER_PORT`**).
 - The host and port of the gRPC server of the Ethereum client component of the
   agent that the Fabric client will be communicating with.
-  (`COMMITMENT_GRPC_SERVER_HOST` and `COMMITMENT_GRPC_SERVER_PORT`).
+  (`COMMITMENT_GRPC_SERVER_HOST` and **`COMMITMENT_GRPC_SERVER_PORT`**).
 - The path to the connection json file of the peer
-  (`COMMITMENT_GRPC_SERVER_HOST`) and the path to the peer organization's CA
-  certificate (`CA_PEM_PATH`).
+  (**`NETWORK_CONFIG_PATH`**) and the path to the peer organization's CA
+  certificate (**`CA_PEM_PATH`**).
 - The chaincode installed on the network must have a function that returns the
   result of the `GetHistoryByKey` stub function. This allows the agent to query
   the peer for the history of the state requested by the external client to find
   the version that was included in the version of the accumulator they requested
-  for. The name of this function should be provided in the `QUERY_HISTORY_CC_FN`
+  for. The name of this function should be provided in the **`QUERY_HISTORY_CC_FN`**
   variable.
-- The `ORG` variable is used to name the DB file that the accumulator is stored
+- The **`ORG`** variable is used to name the DB file that the accumulator is stored
   in. It should be consistent with the name used when naming the config file,
   to start the fabric-client and the ethereum-client, and when specifying the
   org to connect to as the external-client.
-- Other peer-specific variables (e.g. `MSP` id, `AFFILIATION`, etc.).
+- **`CA_URL`** is the address of the certificate authority for the organization.
+- **`ADMIN`** is used in the name of the file for the admin credentials issued by the CA. It
+  needs to be specific for the organization, e.g. "org1Admin".
+- `HOSTNAME` is used by the EnrollmentRequest when enrolling the admin user and
+  to be honest, I'm not actually sure what it's for. Leave as `localhost` unless
+  you know better.
+- `MSP` is the name of the MSP for the organization and is included in the
+  issued certificate for the admin and user.
+- **`USER`** is used in the name of the file for the user credentials issued by the
+  CA. It needs to be specific for the organization and must end in "User", e.g. `org1User`.
+- `AFFILIATION` is one of the properties of the user and is used in the
+  registration request. I don't think this matters too much.
 - The seeds used for trusted setup of the accumulator. These seeds are used to
   create the large random primes `p` and `q` that are used to generate the RSA
   modulus `N` for the accumulator, and for random base of the accumulator `A0`.
   These seeds can be any `Long`, but must be the same between all agents.
 
-### Clone the bulletin board repo
+There also needs to be a config file for each agent to tell it how to connect to
+the Ethereum network. The
+`ethereum-client/src/main/resources/config.properties` file can be used as a
+template to a new file called `<orgId>config.properties`. The file needs to be
+updated with the correct information. Take extra special care with those in
+bold.
+
+- `ETHEREUM_ACCOUNTS` is the list of Ethereum account addresses used by the
+  Fabric agents that are comma separated with no spaces. The `config.properties`
+  file lists the first five addresses that are printed when the Ethereum network
+  is started with `npx ganache-cli --deterministic`. When setting the management
+  committee the first _n_ addresses will be taken from this list, where _n_ is
+  the number of Fabric user credentials present in the `wallet` folder. Only
+  change this list if a different set of Ethereum accounts is used, or if more
+  than five addresses are needed.
+- **`ETHEREUM_PRIVATE_KEY`** is the private key used by this agent. Each agent
+  that is started needs to use a unique private key. It must correspond with one
+  of the Ethereum accounts that is included in the managment committee. For
+  example, if it is a three org network, there will be three sets of user
+  credentials in the `wallet` folder. Therefore, three Fabric public keys and
+  the first three accounts in the `ETHEREUM_ACCOUNTS` list will be submitted as
+  the management commitee. The first three private keys need to be listed in the
+  three config files corresponding to the three orgs.
+- **`POLICY_QUORUM`** is the number of votes a commitment needs to be activated
+  on the bulletin board. Update this if there are multiple Fabric agents and you
+  want them all to submit commitments.
+- `COMMITMENT_GRPC_SERVER_HOST` and **`COMMITMENT_GRPC_SERVER_PORT`** define the
+  address of the gRPC server that the ethereum-client runs to receive
+  commitments from the Fabric client. Each set of fabric-client and
+  ethereum-client pairs need to use a distinct port, but it must be the same
+  port as the one listed in the corresponding config file in fabric-client.
+
+### Clone the bulletin board repo and start the Ethereum network
 
 This project copies the solidity smart contracts defined in the [bulletin
 board](https://github.com/dlt-interoperability/bulletin-board) repo and
 generates Java wrapper files from them. Ensure the bulletin board project is
 present at the same level as the directory structure as the commitment-agent
 project.
+
+Before starting the The Ethereum bulletin board run, `npm install`. Then run:
+
+```
+npx ganache-cli --deterministic
+```
 
 ### Start the Fabric network
 
@@ -170,6 +220,9 @@ Example Gists:
 ## TODO
 
 Fabric
+
+- Have the creation the user and admin credentials and the submission of the
+  management committe to the Ethereum contract run separately.
 
 RSA Accumulators
 
