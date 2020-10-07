@@ -37,8 +37,8 @@ dependencies {
     testImplementation 'org.jetbrains.kotlin:kotlin-test'
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit'
 
-    // Functional Kotlin library
-    implementation "io.arrow-kt:arrow-core:0.10.4"
+    // arrow-mtl has a dependency on arrow-mtl-data and arrow-core
+    implementation "io.arrow-kt:arrow-mtl:0.11.0"
 
     // Fabric dependencies
     implementation 'org.hyperledger.fabric:fabric-gateway-java:2.2.0'
@@ -53,7 +53,7 @@ dependencies {
     implementation "io.grpc:grpc-stub:$grpc_version"
 
     // RSA accumulator library
-    implementation "org.starcoin.rsa:rsa-accumulator:0.1"
+    implementation "res.dlt.accumulator:rsa-accumulator:0.1"
 
     // DB
     implementation 'org.mapdb:mapdb:3.0.8'
