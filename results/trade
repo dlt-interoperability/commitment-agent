@@ -1,0 +1,42 @@
+exporter
+--------
+(Last 140)
+Rolling hash: TqCVlaL1ApGFuLd55Q8bGB1mMr9aEsvGgly5Qn3teI8=
+Average block throughput = 1.9510291678860598
+Average TPS = 19.5102916788606
+Average valid TPS = 19.5102916788606
+Current block processing latency = 520
+Current valid Tx processing latency = 52
+Average block processing latency = 511.93571428571386
+Average valid Tx processing latency = 51.19357142857143
+Sending commitment to Ethereum client for block: 298
+Received Ack: message: "Received commitment for block 298"
+
+importer
+--------
+(Last 140)
+Rolling hash: TqCVlaL1ApGFuLd55Q8bGB1mMr9aEsvGgly5Qn3teI8=
+Average block throughput = 1.9369388065689896
+Average TPS = 19.369388065689897
+Average valid TPS = 19.369388065689897
+Current block processing latency = 486
+Current valid Tx processing latency = 48
+Average block processing latency = 515.271428571428
+Average valid Tx processing latency = 51.52714285714285
+Sending commitment to Ethereum client for block: 298
+Received Ack: message: "Received commitment for block 298"
+
+regulator
+---------
+(Last 140)
+Rolling hash: TqCVlaL1ApGFuLd55Q8bGB1mMr9aEsvGgly5Qn3teI8=
+Average block throughput = 1.9486665553142921
+Average TPS = 19.48666555314292
+Average valid TPS = 19.48666555314292
+Current block processing latency = 512
+Current valid Tx processing latency = 51
+Average block processing latency = 512.5785714285716
+Average valid Tx processing latency = 51.257857142857155
+Sending commitment to Ethereum client for block: 298
+Received Ack: message: "Received commitment for block 298"
+

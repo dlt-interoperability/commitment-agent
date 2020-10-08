@@ -1,0 +1,124 @@
+Testnet-smallbank
+-----------------
+(Initial 4 blocks: ignore)
+
+NOOP:
+Average block throughput = 39.56478733926805
+Average TPS = 395.64787339268054
+Average valid TPS = 395.64787339268054
+Current block processing latency = 2
+Current valid Tx processing latency = 0
+Average block processing latency = 1.658333333333333
+Average valid Tx processing latency = 0.16583333333333333
+
+
+Rolling hash: gMLGJAN7miGfS9bvxdqoyaUi4CQ4D8hINpzMqwDxthg=
+Average block throughput = 2.115073769646112
+Average TPS = 20.686453210441243
+Average valid TPS = 20.686453210441243
+Current block processing latency = 472
+Current valid Tx processing latency = 47
+Average block processing latency = 472.4308943089431
+Average valid Tx processing latency = 48.30340814630092
+Sending commitment to Ethereum client for block: 124
+Received Ack: message: "Received commitment for block 124"
+
+Rolling hash: cLFiey7gDoxP7WSRB2w/34qLSj0OCLgNvqUyLTNJIGc=
+Average block throughput = 2.0818153429790778
+Average TPS = 20.818153429790776
+Average valid TPS = 20.818153429790776
+Current block processing latency = 479
+Current valid Tx processing latency = 47
+Average block processing latency = 479.98333333333335
+Average valid Tx processing latency = 47.99833333333335
+Sending commitment to Ethereum client for block: 244
+Received Ack: message: "Received commitment for block 244"
+
+Rolling hash: zpN9mhqst0ZKPKJmFpJAVLVVf905RbLXk3PH3NT+Q8c=
+Average block throughput = 2.053352954261563
+Average TPS = 20.53352954261563
+Average valid TPS = 20.53352954261563
+Current block processing latency = 488
+Current valid Tx processing latency = 48
+Average block processing latency = 486.55833333333334
+Average valid Tx processing latency = 48.655833333333334
+Sending commitment to Ethereum client for block: 364
+Received Ack: message: "Received commitment for block 364"
+
+Rolling hash: Eg04jz8lCaOy5Es0Zvt+nPgJgDQ2OwBP4u64UEg7kbg=
+Average block throughput = 2.019963977309071
+Average TPS = 20.199639773090713
+Average valid TPS = 20.199639773090713
+Current block processing latency = 474
+Current valid Tx processing latency = 47
+Average block processing latency = 494.675
+Average valid Tx processing latency = 49.467499999999994
+Sending commitment to Ethereum client for block: 484
+Received Ack: message: "Received commitment for block 484"
+
+Rolling hash: wlVo1wGOsHjh+mjKvm7cYP2V0puL6pmHxlvPRsMIfH0=
+Average block throughput = 1.9790550012369095
+Average TPS = 19.790550012369092
+Average valid TPS = 19.790550012369092
+Current block processing latency = 752
+Current valid Tx processing latency = 75
+Average block processing latency = 505.0
+Average valid Tx processing latency = 50.49999999999999
+Sending commitment to Ethereum client for block: 604
+Received Ack: message: "Received commitment for block 604"
+
+Rolling hash: w1IUvUrNSo3xWGXUkfbssiuq+G9aLswUY96cKsqfpeE=
+Average block throughput = 1.9271226452970178
+Average TPS = 19.27122645297018
+Average valid TPS = 19.27122645297018
+Current block processing latency = 520
+Current valid Tx processing latency = 52
+Average block processing latency = 518.6333333333334
+Average valid Tx processing latency = 51.86333333333334
+Sending commitment to Ethereum client for block: 724
+Received Ack: message: "Received commitment for block 724"
+
+Rolling hash: 1LYWuLmphgQmSMLX0ljHVXAehjvj2RNj/+FreQYMiAg=
+Average block throughput = 1.8939095026909298
+Average TPS = 18.939095026909296
+Average valid TPS = 18.939095026909296
+Current block processing latency = 546
+Current valid Tx processing latency = 54
+Average block processing latency = 527.7583333333336
+Average valid Tx processing latency = 52.775833333333324
+Sending commitment to Ethereum client for block: 844
+Received Ack: message: "Received commitment for block 844"
+
+Rolling hash: vX4GIOBRl0eUk4VsAeVIwy6BG9xKuaPblqGH1zs3wLM=
+Average block throughput = 1.852366398073539
+Average TPS = 18.52366398073539
+Average valid TPS = 18.52366398073539
+Current block processing latency = 528
+Current valid Tx processing latency = 52
+Average block processing latency = 539.5583333333329
+Average valid Tx processing latency = 53.95583333333334
+Sending commitment to Ethereum client for block: 964
+Received Ack: message: "Received commitment for block 964"
+
+Rolling hash: FKAq9yzTT5y9pwFCXtKzzm1T98kahJNPwx1mo1KswcY=
+Average block throughput = 1.8167504390480227
+Average TPS = 18.16750439048023
+Average valid TPS = 18.16750439048023
+Current block processing latency = 527
+Current valid Tx processing latency = 52
+Average block processing latency = 550.1416666666664
+Average valid Tx processing latency = 55.01416666666667
+Sending commitment to Ethereum client for block: 1084
+Received Ack: message: "Received commitment for block 1084"
+
+Rolling hash: LOBC85VGQde9XH4nQjZuPNVoUuemHfraxyvaKzbURqk=
+Average block throughput = 1.766888509335061
+Average TPS = 17.66888509335061
+Average valid TPS = 17.66888509335061
+Current block processing latency = 640
+Current valid Tx processing latency = 64
+Average block processing latency = 565.6583333333336
+Average valid Tx processing latency = 56.56583333333333
+Sending commitment to Ethereum client for block: 1204
+Received Ack: message: "Received commitment for block 1204"
+

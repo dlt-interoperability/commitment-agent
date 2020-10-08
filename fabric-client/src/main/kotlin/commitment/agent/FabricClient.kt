@@ -23,6 +23,15 @@ class FabricClient(val orgId: String) {
     var network: Option<Network> = None
     var contract: Option<Contract> = None
     val config = Properties()
+    val startProcessingTime = System.currentTimeMillis()
+    var blockCount = 0
+    var avgBlockLatency: Long = 0
+    var validTxCount = 0
+    var totalTxCount = 0  
+    var avgValidTxLatency: Long = 0
+    var blockTpsRunningAvg: Double = 0.0
+    var totalTxTpsRunningAvg: Double = 0.0
+    var validTxTpsRunningAvg: Double = 0.0
 
     init {
         // Load the config properties from the file in src/main/resources
@@ -163,6 +172,8 @@ class FabricClient(val orgId: String) {
      * the accumulator is not updated but stored as-is under a new block height.
      */
     fun handleBlockEvent(blockEvent: BlockEvent) {
+        val procTimeStart = System.currentTimeMillis()
+	var validTx = 0
         val blockNum = blockEvent.blockNumber.toInt()
         println("Processing block $blockNum")
         val orgName = config["ORG"] as String
@@ -175,6 +186,7 @@ class FabricClient(val orgId: String) {
                         txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                             nsRwsetInfo.rwset.writesList.map { kvWrite ->
                                 println("KvWrite: $kvWrite")
+				validTx++
                                 KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                             }
                         }
@@ -193,6 +205,25 @@ class FabricClient(val orgId: String) {
                 runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
             }
         }
+	
+        val endProcessingTime = System.currentTimeMillis()
+        val currBlockLatency = endProcessingTime - procTimeStart
+	val avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
+	val currValidTxLatency = currBlockLatency/validTx
+	avgValidTxLatency = (validTxCount * avgValidTxLatency + currBlockLatency)/(validTxCount + validTx)
+	blockCount++
+	totalTxCount += blockEvent.transactionEvents.count()
+	validTxCount += validTx
+	blockTpsRunningAvg = 1000.0 * blockCount/(endProcessingTime - startProcessingTime)
+	totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
+	validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
+        println("Average block throughput = $blockTpsRunningAvg")
+	println("Average TPS = $totalTxTpsRunningAvg")
+	println("Average valid TPS = $validTxTpsRunningAvg")
+	println("Current block processing latency = $currBlockLatency")
+	println("Current valid Tx processing latency = $currValidTxLatency")
+	println("Average block processing latency = $avgBlockLatency")
+	println("Average valid Tx processing latency = $avgValidTxLatency")
     }
 
     /**
@@ -228,8 +259,11 @@ class FabricClient(val orgId: String) {
             Left(Error("Fabric Error: Error getting chaincode contract"))
         }, {
             val queryHistoryChaincodeFn = config["QUERY_HISTORY_CC_FN"] as String
-            val resultJSON = it.evaluateTransaction(queryHistoryChaincodeFn, key).toString(Charsets.UTF_8)
-            val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
+            val historyResult = it.evaluateTransaction(queryHistoryChaincodeFn, key)
+	    println("History result: $historyResult")
+	    val historyJsonString = historyResult.toString(Charsets.UTF_8)
+	    println("History result as JSON string: $historyJsonString")
+            val result = Gson().fromJson(historyJsonString, Array<KeyModification>::class.java).toList()
             Right(result)
         })
     } catch (e: Exception) {

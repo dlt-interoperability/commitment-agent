@@ -40,6 +40,7 @@ class MapDb {
     }
 
     fun get(key: Int, orgName: String): Either<Error, String> {
+	println("Getting accumulator for org $orgName for blockheight $key")
         val db = fileDB("${orgName}File.db")
                 .fileMmapEnable()
                 .make()

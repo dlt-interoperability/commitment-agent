@@ -1,0 +1,103 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+name: Fabric
+version: "1.0"
+mutual-tls: false
+
+caliper:
+  blockchain: fabric
+  #command:
+    #start: export FABRIC_VERSION=2.1.0;export FABRIC_CA_VERSION=1.4.4;docker-compose -f /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/docker-compose/2org1peergoleveldb_raft/docker-compose-tls.yaml up -d;sleep 3s
+    #end: docker-compose -f /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/docker-compose/2org1peergoleveldb_raft/docker-compose-tls.yaml down;(test -z \"$(docker ps -aq)\") || docker rm $(docker ps -aq);(test -z \"$(docker images dev* -q)\") || docker rmi $(docker images dev* -q);rm -rf /tmp/hfc-*
+
+info:
+  Version: 2.1.0
+  Size: 1 Org with 1 Peer
+  Orderer: Raft
+  Distribution: Single Host
+  StateDB: GoLevelDB
+
+client:
+  organization: Org1
+  credentialStore:
+    path: /tmp/hfc-kvs/org1
+    cryptoStore:
+      path: /tmp/hfc-cvs/org1
+  clientPrivateKey:
+    path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/User1@org1.network1.com/msp/keystore/4e68ada15ad60c13691df1afff86c37f06dfb61a72fd8a88a52776ca453de707_sk
+  clientSignedCert:
+    path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/User1@org1.network1.com/msp/signcerts/cert.pem
+
+
+channels:
+  mychannel:
+    configBinary: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/mychannel.tx
+    created: false
+    orderers:
+    - orderer.network1.com
+    peers:
+      peer0.org1.network1.com:
+        eventSource: false
+
+    chaincodes:
+    #- id: simplestate
+      #version: v1
+      #language: golang
+      #path: fabric/samples/simplestate
+    - id: smallbank
+      version: v1
+      language: golang
+      path: fabric/scenario/smallbank/go/
+
+organizations:
+  Org1:
+    mspid: Org1MSP
+    peers:
+    - peer0.org1.network1.com
+    certificateAuthorities:
+    - ca.org1.network1.com
+    adminPrivateKey:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/Admin@org1.network1.com/msp/keystore/300c7a35aef33e43ea99ab9f1ba7a04bc4fbed29becefbbf97aa0710d13a1870_sk
+    signedCert:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/Admin@org1.network1.com/msp/signcerts/cert.pem
+
+orderers:
+  orderer.network1.com:
+    url: grpcs://localhost:7050
+    grpcOptions:
+      ssl-target-name-override: orderer.network1.com
+    tlsCACerts:
+        path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/ordererOrganizations/network1.com/orderers/orderer.network1.com/msp/tlscacerts/tlsca.network1.com-cert.pem
+
+peers:
+  peer0.org1.network1.com:
+    url: grpcs://localhost:7051
+    grpcOptions:
+      ssl-target-name-override: peer0.org1.network1.com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+        path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/tlsca/tlsca.org1.network1.com-cert.pem
+
+certificateAuthorities:
+  ca.org1.network1.com:
+    url: https://localhost:7054
+    httpOptions:
+      verify: false
+    tlsCACerts:
+        path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/tlsca/tlsca.org1.network1.com-cert.pem
+    registrar:
+    - enrollId: admin
+      enrollSecret: adminpw
