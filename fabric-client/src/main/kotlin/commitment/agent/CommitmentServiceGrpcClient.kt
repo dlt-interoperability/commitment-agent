@@ -1,7 +1,6 @@
 package commitment.agent.fabric.client
 
 import arrow.core.Left
-import arrow.core.Right
 import commitment.CommitmentOuterClass
 import commitment.CommitmentServiceGrpcKt.CommitmentServiceCoroutineStub
 import io.grpc.ManagedChannel
@@ -22,7 +21,7 @@ class CommitmentServiceGrpcClient(private val channel: ManagedChannel) : Closeab
     }
 
     suspend fun sendCommitment(commitment: CommitmentOuterClass.Commitment) = coroutineScope {
-        println("Sending commitment to Ethereum client for block: ${commitment.blockHeight}")
+        println("Sending commitment ${commitment.accumulator.toString().substring(0, 30)} to Ethereum client for block: ${commitment.blockHeight}")
         val response = async { stub.sendCommitment(commitment) }.await()
         println("Received Ack: $response")
         response
@@ -33,7 +32,7 @@ class CommitmentServiceGrpcClient(private val channel: ManagedChannel) : Closeab
     }
 }
 
-fun sendCommitteeHelper(publicKeys: List<String>, config: Properties) = try {
+suspend fun sendCommitteeHelper(publicKeys: List<String>, config: Properties) = try {
     val client = CommitmentServiceGrpcClient(
             ManagedChannelBuilder.forAddress(
                     config["COMMITMENT_GRPC_SERVER_HOST"] as String,
@@ -44,7 +43,7 @@ fun sendCommitteeHelper(publicKeys: List<String>, config: Properties) = try {
     val committeeBuilder = CommitmentOuterClass.Committee.newBuilder()
     publicKeys.map { committeeBuilder.addPublicKeys(it) }
     val committee = committeeBuilder.build()
-    GlobalScope.launch {
+    coroutineScope {
         val ack = async { client.sendCommittee(committee) }.await()
         if (ack.status != CommitmentOuterClass.Ack.STATUS.OK) {
             println("Error sending management committee to Ethereum client: ${ack.message}\n")
@@ -68,7 +67,7 @@ fun sendCommitmentHelper(accumulatorWrapper: AccumulatorWrapper, blockNum: Int, 
             .setRollingHash(accumulatorWrapper.rollingHash)
             .setBlockHeight(blockNum)
             .build()
-    GlobalScope.launch {
+    runBlocking {
         val ack = async { client.sendCommitment(commitment) }.await()
         if (ack.status != CommitmentOuterClass.Ack.STATUS.OK) {
             println("Error sending accumulator to Ethereum client: ${ack.message}\n")

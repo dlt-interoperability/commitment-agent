@@ -3,11 +3,14 @@ package commitment.agent.fabric.client
 import arrow.core.Either
 import arrow.core.Left
 import arrow.core.flatMap
+import arrow.mtl.run
 import com.google.gson.Gson
 import commitment.CommitmentOuterClass
-import org.starcoin.rsa.RSAAccumulator
-import org.starcoin.rsa.stringToHashBigInteger
 import proof.ProofOuterClass.Proof
+import res.dlt.accumulator.RSAAccumulator
+import res.dlt.accumulator.add
+import res.dlt.accumulator.delete
+import res.dlt.accumulator.hashStringToBigInt
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -23,23 +26,23 @@ fun initialiseAccumulator(
     val db = MapDb()
 
     // If this is the first block we need to initialise the accumulator
-    val accumulator = RSAAccumulator(seed1, seed2, seed3)
+    val accumulator = RSAAccumulator.newInstance(seed1, seed2, seed3)
+
     // Convert each of the KVWrites to a hash and add to the accumulator.
     // Note that if this is an empty list the accumulator doesn't get updated.
-    val kvHash = kvWrites.map { kvWrite ->
+    val finalAccumulator = kvWrites.fold(accumulator, { acc,  kvWrite ->
         val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
-        val kvHash = stringToHashBigInteger(jsonString)
-        // WARNING: this mutates the accumulator
-        accumulator.add(kvHash)
-    }
+        val kvHash = hashStringToBigInt(jsonString)
+        add(kvHash).run(acc).a
+    })
 
     // Initialise the rolling hash for the accumulator
-    val digest = MessageDigest.getInstance("SHA-256").digest(accumulator.a.toByteArray())
+    val digest = MessageDigest.getInstance("SHA-256").digest(finalAccumulator.a.toByteArray())
     val rollingHash = Base64.getEncoder().encodeToString(digest)
     println("Rolling hash: $rollingHash")
 
     // Convert the accumulator + hash wrapper type to a JSON string and store in the DB
-    val accumulatorWrapper = AccumulatorWrapper(accumulator, rollingHash)
+    val accumulatorWrapper = AccumulatorWrapper(finalAccumulator, rollingHash)
     val accumulatorWrapperJson = Gson().toJson(accumulatorWrapper, AccumulatorWrapper::class.java)
     db.start(blockNum, accumulatorWrapperJson, orgName).map { accumulatorWrapper }
 } catch (e: Exception) {
@@ -52,7 +55,7 @@ fun initialiseAccumulator(
  * present in all the valid transactions in the block. It gets the previous version
  * of the accumulator for the previous block and adds all the KVWrites to it. To do
  * this the KVWrite is first converted to a JSON string, then to a hash using the
- * `stringToHashBigInteger` function. The `add` method of the RSA accumulator then
+ * `hashStringToBigInt` function. The `add` method of the RSA accumulator then
  * finds a prime representation of this hash by hashing it again together with an
  * appropriate nonce. The prime representation is used to update the accumulator.
  * The accumulator stores the original (non-prime) hash together with its nonce in
@@ -74,29 +77,27 @@ fun updateAccumulator(
         val accumulator = accumulatorWrapper.accumulator
         // Convert each of the KVWrites to a hash and add to the accumulator.
         // Note that if this is an empty list the accumulator doesn't get updated.
-        val kvHash = kvWrites.map { kvWrite ->
+        val finalAccumulator = kvWrites.fold(accumulator, { acc, kvWrite ->
             val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
-            val kvHash = stringToHashBigInteger(jsonString)
+            val kvHash = hashStringToBigInt(jsonString)
             if (kvWrite.isDelete) {
-                // WARNING: this mutates the accumulator
-                accumulator.delete(kvHash)
+                delete(kvHash).run(acc).a
             } else {
-                // WARNING: this mutates the accumulator
-                accumulator.add(kvHash)
+                add(kvHash).run(acc).a
             }
-        }
+        })
 
         // Update the rolling hash for the accumulator
         val digest = MessageDigest
                 .getInstance("SHA-256")
-                .digest((accumulatorWrapper.rollingHash + accumulator.a).toByteArray())
+                .digest((accumulatorWrapper.rollingHash + finalAccumulator.a).toByteArray())
         val rollingHash = Base64.getEncoder().encodeToString(digest)
         println("Rolling hash: $rollingHash")
 
         // Convert the accumulator + hash wrapper type to a JSON string and  store in the DB
-        val newAccumulatorWrapper = AccumulatorWrapper(accumulator, rollingHash)
+        val newAccumulatorWrapper = AccumulatorWrapper(finalAccumulator, rollingHash)
         val accumulatorWrapperJson = Gson().toJson(newAccumulatorWrapper, AccumulatorWrapper::class.java)
-        db.update(blockNum, accumulatorWrapperJson, orgName).map { accumulatorWrapper }
+        db.update(blockNum, accumulatorWrapperJson, orgName).map { newAccumulatorWrapper }
     }
 } catch (e: Exception) {
     println("Accumulator Error: Error updating accumulator: ${e.message}")
@@ -136,11 +137,10 @@ fun createProof(
                             value = keyModification.value
                     )
                     val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
-                    val kvHash = stringToHashBigInteger(kvJson)
-                    accumulator.createProof(kvHash).map { proof ->
+                    val kvHash = hashStringToBigInt(kvJson)
+                    res.dlt.accumulator.createProof(kvHash).run(accumulator).b.map { proof ->
                         Proof.newBuilder()
                                 .setState(kvJson)
-                                .setNonce(proof.nonce.toString())
                                 .setProof(proof.proof.toString())
                                 .setA(accumulator.a.toString())
                                 .setN(proof.n.toString())
@@ -169,8 +169,8 @@ fun isStateInAccumulator(key: String, keyModification: KeyModification, accumula
             value = keyModification.value
     )
     val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
-    val kvHash = stringToHashBigInteger(kvJson)
-    return accumulator.getNonceOrNull(kvHash) != null
+    val kvHash = hashStringToBigInt(kvJson)
+    return accumulator.data.contains(kvHash)
 }
 
 data class KvWrite(val key: String, val value: String, val isDelete: Boolean)

@@ -10,11 +10,11 @@ fun main(args: Array<String>) {
     // Start the Fabric client
     GlobalScope.launch {
         val fabricClient = FabricClient(orgName)
-        fabricClient.start()
         val isInitializer = try { args[1] == "true" } catch (e: Exception) { false }
         if (isInitializer) {
             fabricClient.initialize()
         }
+        fabricClient.start()
     }
 
     // Start the gRPC server for the external client to make state requests to

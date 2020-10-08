@@ -43,7 +43,7 @@ class GrpcService(val ledgerStateManager: LedgerStateManager) : CommitmentServic
         val publicKeys = request.publicKeysList.asByteStringList().map {
             it.toStringUtf8()
         }
-        GlobalScope.launch { ledgerStateManager.setManagementCommittee(publicKeys) }
+        ledgerStateManager.setManagementCommittee(publicKeys)
         println("Sending back ack: $ack\n")
         return ack
     }
@@ -54,7 +54,7 @@ class GrpcService(val ledgerStateManager: LedgerStateManager) : CommitmentServic
                 .setStatus(CommitmentOuterClass.Ack.STATUS.OK)
                 .setMessage("Received commitment for block ${request.blockHeight}")
                 .build()
-        GlobalScope.launch { ledgerStateManager.postCommitment(request.accumulator, request.rollingHash, request.blockHeight) }
+        ledgerStateManager.postCommitment(request.accumulator, request.rollingHash, request.blockHeight)
         println("Sending back ack: $ack\n")
         return ack
     }

@@ -24,8 +24,6 @@ message StateProofResponse {
 message Proof {
   // JSON string representation of the KVWrite state
   string state = 1;
-  // String representation of the nonce BigInteger
-  string nonce = 2;
   // String representation of the proof BigInteger
   string proof = 3;
   //String representation of the accumulator value

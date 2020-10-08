@@ -239,12 +239,11 @@ RSA Accumulators
 
 Ethereum Client
 
-- Fix the type of the commitment on the bulletin board to fit the entire commitment
+- Fix the type of the commitment on the bulletin board to fit the entire commitment.
 
 General
-
-- Fix the architecture diagram
-- Add sequence diagrams for
-  - Setting up management committee
-  - Updating and publishing commitment
-  - Making request
+- Remove `Option` types as Arrow has deprecated them in favour of Kotlin's nullable types.
+- Add sequence diagrams for:
+  - Setting up management committee.
+  - Updating and publishing commitment.
+  - Making request.
