@@ -55,7 +55,7 @@ fun initialiseAccumulator(
  * present in all the valid transactions in the block. It gets the previous version
  * of the accumulator for the previous block and adds all the KVWrites to it. To do
  * this the KVWrite is first converted to a JSON string, then to a hash using the
- * `stringToHashBigInteger` function. The `add` method of the RSA accumulator then
+ * `hashStringToBigInt` function. The `add` method of the RSA accumulator then
  * finds a prime representation of this hash by hashing it again together with an
  * appropriate nonce. The prime representation is used to update the accumulator.
  * The accumulator stores the original (non-prime) hash together with its nonce in
@@ -97,7 +97,7 @@ fun updateAccumulator(
         // Convert the accumulator + hash wrapper type to a JSON string and  store in the DB
         val newAccumulatorWrapper = AccumulatorWrapper(finalAccumulator, rollingHash)
         val accumulatorWrapperJson = Gson().toJson(newAccumulatorWrapper, AccumulatorWrapper::class.java)
-        db.update(blockNum, accumulatorWrapperJson, orgName).map { accumulatorWrapper }
+        db.update(blockNum, accumulatorWrapperJson, orgName).map { newAccumulatorWrapper }
     }
 } catch (e: Exception) {
     println("Accumulator Error: Error updating accumulator: ${e.message}")

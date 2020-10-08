@@ -3,7 +3,9 @@ package commitment.agent.fabric.client
 import arrow.core.*
 import com.google.gson.Gson
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
 import org.hyperledger.fabric.sdk.Enrollment
@@ -50,10 +52,10 @@ class FabricClient(val orgId: String) {
         println("Fabric Error: Error creating block listener: ${e.message}")
     }
 
-    fun initialize() = try {
+    suspend fun initialize() = try {
         // Send the set of public keys to the Ethereum client to initialise the management committee
         getFabricAgentPublicKeys().map {
-            sendCommitteeHelper(it, config)
+            coroutineScope { sendCommitteeHelper(it, config) }
         }
     } catch (e: Exception) {
         println("Fabric Error: Error creating block listener: ${e.message}")
@@ -172,6 +174,7 @@ class FabricClient(val orgId: String) {
                     txEvent.transactionActionInfos.flatMap { txActionInfo ->
                         txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                             nsRwsetInfo.rwset.writesList.map { kvWrite ->
+                                println("KvWrite: $kvWrite")
                                 KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                             }
                         }
@@ -187,9 +190,7 @@ class FabricClient(val orgId: String) {
             // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
             updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
                 // Then send the accumulator to the Ethereum client for publishing
-                GlobalScope.launch {
-                    sendCommitmentHelper(accumulatorWrapper, blockNum, config)
-                }
+                runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
             }
         }
     }
