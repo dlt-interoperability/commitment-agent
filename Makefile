@@ -1,6 +1,7 @@
 ORG = ""
 INIT = ""
 LC_ADDRESS = ""
+PRIMARY_ORG = ""
 
 .PHONY: build
 build:
@@ -9,7 +10,7 @@ build:
 
 .PHONY: start-fabric
 start-fabric: build
-	./fabric-client/build/install/fabric-client/bin/fabric-client $(ORG) $(INIT)
+	./fabric-client/build/install/fabric-client/bin/fabric-client $(ORG) $(INIT) $(PRIMARY_ORG)
 
 .PHONY: start-ethereum
 start-ethereum: build

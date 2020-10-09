@@ -157,16 +157,31 @@ make start-ethereum ORG="org1"
 make start-ethereum ORG="org2" LC_ADDRESS="<lc-address>"
 ```
 
-The credentials for both the Fabric clients need to be generated before
-submitting the management committee to the ledger state contract. Therefore, the
-second client that is started should have the `INIT="true"` flag, which tells
-the client that it should look up all the user public keys in the wallet folder
-and submit them as the management committee to the ledger state Ethereum
-contract. In separate terminal panes, run:
+Before the Fabric clients start listening to block events, they need to be
+initialised with credentials for the admin and user and create teh empty RSA
+accumulator. To do this, use the `start-fabric` make command with the flag
+`INIT="true"`. The final Fabric client to start up also needs to submit the
+management committee to the ledger state contract. To do this, include the
+`"PRIMARY_ORG="true"` flag for that final org. This tells the client it should
+look up all the user public keys in the wallet folder and submit them as the
+management committee to the ledger state Ethereum contract.
+
+For example, for a two org network, use:
 
 ```
+make start-fabric ORG="org2" INIT="true"
+make start-fabric ORG="org1" INIT="true" PRIMARY_ORG="true"
+```
+
+Once the Fabric clients have been initialised in this way, start up each of them
+in separate terminal panes without the `INIT` or `PRIMARY_ORG` flags. The
+clients will then start listening to block events from the Fabric peer.
+
+For example, for a two org network, use:
+
+```
+make start-fabric ORG="org1"
 make start-fabric ORG="org2"
-make start-fabric ORG="org1" INIT="true"
 ```
 
 **Note on restarting the agent**: If the Fabric network is stopped and started,
@@ -224,11 +239,6 @@ Example Gists:
 
 ## TODO
 
-Fabric
-
-- Have the creation the user and admin credentials and the submission of the
-  management committe to the Ethereum contract run separately.
-
 RSA Accumulators
 
 - Add a config file to store path to local Maven repository for the
@@ -242,6 +252,7 @@ Ethereum Client
 - Fix the type of the commitment on the bulletin board to fit the entire commitment.
 
 General
+
 - Remove `Option` types as Arrow has deprecated them in favour of Kotlin's nullable types.
 - Add sequence diagrams for:
   - Setting up management committee.

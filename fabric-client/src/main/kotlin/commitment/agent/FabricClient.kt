@@ -19,48 +19,45 @@ import java.security.PrivateKey
 import java.util.*
 
 class FabricClient(val orgId: String) {
-    var gateway: Option<Gateway> = None
-    var network: Option<Network> = None
-    var contract: Option<Contract> = None
     val config = Properties()
 
     init {
         // Load the config properties from the file in src/main/resources
         this::class.java.getResourceAsStream("/${orgId}config.properties")
                 .use { config.load(it) }
-        // First enroll an admin and user
+    }
+
+    fun initialize() {
         enrollAdmin()
         registerUser()
-        // Create a gateway connection
-        try {
-            println("Attempting to connect to Fabric network")
-            gateway = Some(connect())
-            println("Connected!")
-            network = gateway.map { it.getNetwork(config["CHANNEL"] as String) }
-            contract = network.map { it.getContract(config["CHAINCODE"] as String) }
-        } catch (e: Exception) {
-            println("Fabric Error: Error creating network connection: ${e.message}")
-        }
+        val orgName = config["ORG"] as String
+        val seed1 = (config["SEED1"] as String).toLong()
+        val seed2 = (config["SEED2"] as String).toLong()
+        val seed3 = (config["SEED3"] as String).toLong()
+        initialiseAccumulator(1, orgName, seed1, seed2, seed3)
     }
 
-    fun start() = try {
-        // The first block that is streamable from the Fabric peer is block 2.
-        // Get all blocks from block 2 onwards and start listening for new block events.
-        // All block events are processed by the handleBlockEvent function.
-        this.network.map { it.addBlockListener(2, ::handleBlockEvent) }
-    } catch (e: Exception) {
-        println("Fabric Error: Error creating block listener: ${e.message}")
-    }
-
-    suspend fun initialize() = try {
+    fun setManagementCommittee() = try {
+        println("setting the management committee")
         // Send the set of public keys to the Ethereum client to initialise the management committee
         getFabricAgentPublicKeys().map {
-            coroutineScope { sendCommitteeHelper(it, config) }
+            runBlocking { sendCommitteeHelper(it, config) }
         }
     } catch (e: Exception) {
         println("Fabric Error: Error creating block listener: ${e.message}")
         Left(Error("Fabric Error: Error creating block listener: ${e.message}"))
     }
+
+    fun start() {
+        // Create a connection to the Fabric peer
+        println("Attempting to connect to Fabric network")
+        connect().map { (network, _) ->
+            // The first block that is streamable from the Fabric peer is block 2.
+            // Get all blocks from block 2 onwards and start listening for new block events.
+            // All block events are processed by the handleBlockEvent function.
+            network.addBlockListener(2, ::handleBlockEvent)
+        }
+}
 
     fun enrollAdmin() {
         val caClient = createCaClient()
@@ -139,8 +136,8 @@ class FabricClient(val orgId: String) {
         return caClient
     }
 
-    // Helper function for connecting to the gateway
-    fun connect(): Gateway {
+    // Helper function for connecting to the Fabric network
+    fun connect(): Either<Error, Tuple2<Network, Contract>> {
         // Load a file system based wallet for managing identities.
         val walletPath = Paths.get("wallet")
         val wallet = Wallets.newFileSystemWallet(walletPath)
@@ -153,7 +150,21 @@ class FabricClient(val orgId: String) {
                 .identity(wallet, user)
                 .networkConfig(networkConfigFile)
                 .discovery(true)
-        return builder.connect()
+        val gateway = builder.connect()
+        println("Connected!")
+        val network: Network? = gateway.getNetwork(config["CHANNEL"] as String)
+        return if (network == null) {
+            println("Fabric Error: Error creating Fabric network connection")
+            Left(Error("Fabric Error: Error creating Fabric network connection"))
+        } else {
+            val contract: Contract? = network?.getContract(config["CHAINCODE"] as String)
+            if (contract == null) {
+                println("Fabric Error: Error getting Fabric network contract")
+                Left(Error("Fabric Error: Error getting Fabric network contract"))
+            } else {
+                Right(Tuple2(network, contract))
+            }
+        }
     }
 
     /**
@@ -180,39 +191,12 @@ class FabricClient(val orgId: String) {
                         }
                     }
                 }
-        // If this is the first block streamed (which is block 2), initialise the accumulator
-        if (blockNum == 2) {
-            val seed1 = (config["SEED1"] as String).toLong()
-            val seed2 = (config["SEED2"] as String).toLong()
-            val seed3 = (config["SEED3"] as String).toLong()
-           initialiseAccumulator(blockNum, kvWrites, orgName, seed1, seed2, seed3)
-        } else {
-            // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-            updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
-                // Then send the accumulator to the Ethereum client for publishing
-                runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
-            }
-        }
-    }
 
-    /**
-     * The getState function is used to retrieve a state from the Fabric ledger on request from
-     * an external client. This assumes that the version of the state corresponding to the accumulator
-     * the external client has requested is the latest version of the state on the ledger. This is
-     * obviously not always going to be a valid assumption.
-     */
-    fun getState(key: String): Either<Error, String> = try {
-        contract.fold({
-            println("Fabric Error: Error getting chaincode contract")
-            Left(Error("Fabric Error: Error getting chaincode contract"))
-        }, {
-            val resultJSON = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
-            val result = Gson().fromJson(resultJSON, GetStateResult::class.java)
-            Right(result.data.toString(Charsets.UTF_8))
-        })
-    } catch (e: Exception) {
-        println("Fabric Error: Error getting state $key: ${e.message}")
-        Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
+        // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
+        updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
+            // Then send the accumulator to the Ethereum client for publishing
+            sendCommitmentHelper(accumulatorWrapper, blockNum, config)
+        }
     }
 
     /**
@@ -222,22 +206,16 @@ class FabricClient(val orgId: String) {
      * latest version of the state is present in the accumulator version the external client has
      * requested. If not, it can check the next oldest version of the state until a match is found.
      */
-    fun getStateHistory(key: String): Either<Error, List<KeyModification>> = try {
-        contract.fold({
-            println("Fabric Error: Error getting chaincode contract")
-            Left(Error("Fabric Error: Error getting chaincode contract"))
-        }, {
-            val queryHistoryChaincodeFn = config["QUERY_HISTORY_CC_FN"] as String
-            val resultJSON = it.evaluateTransaction(queryHistoryChaincodeFn, key).toString(Charsets.UTF_8)
-            val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
-            Right(result)
-        })
+    fun getStateHistory(key: String, contract: Contract): Either<Error, List<KeyModification>> = try {
+        val queryHistoryChaincodeFn = config["QUERY_HISTORY_CC_FN"] as String
+        val resultJSON = contract.evaluateTransaction(queryHistoryChaincodeFn, key).toString(Charsets.UTF_8)
+        val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
+        Right(result)
     } catch (e: Exception) {
         println("Fabric Error: Error getting state history for key $key: ${e.message}")
         Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
     }
 }
 
-data class GetStateResult(val type: String, val data: ByteArray)
 data class KeyModification(val timestamp: Timestamp, val value: String, val txId: String, val isDelete: Boolean)
 data class Timestamp(val seconds: String, val nanos: Int)
