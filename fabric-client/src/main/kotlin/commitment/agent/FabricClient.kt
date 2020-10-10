@@ -185,34 +185,34 @@ class FabricClient(val orgId: String) {
      * the accumulator is not updated but stored as-is under a new block height.
      */
     fun handleBlockEvent(blockEvent: BlockEvent) {
-	// Assume that a 10-second inactive period means measurement must be restarted
+	    // Assume that a 10-second inactive period means measurement must be restarted
     	if (startProcessingTime < 0 || System.currentTimeMillis() - endProcessingTime > 10000) {
-	    startProcessingTime = System.currentTimeMillis()
-    	    blockCount = 0.0
-    	    totalTxCount = 0.0
-    	    validTxCount = 0.0
-	    blockTpsRunningAvg = 0.0
-	    totalTxTpsRunningAvg = 0.0
-    	    validTxTpsRunningAvg = 0.0
-	    avgBlockLatency = 0.0
-	    avgValidTxLatency = 0.0
-	    println("Restarting measurement at epoch $startProcessingTime")
-	}
-	var procTimeStart = System.currentTimeMillis()
+            startProcessingTime = System.currentTimeMillis()
+            blockCount = 0.0
+            totalTxCount = 0.0
+            validTxCount = 0.0
+            blockTpsRunningAvg = 0.0
+            totalTxTpsRunningAvg = 0.0
+            validTxTpsRunningAvg = 0.0
+            avgBlockLatency = 0.0
+            avgValidTxLatency = 0.0
+            println("Restarting measurement at epoch $startProcessingTime")
+	    }
+        var procTimeStart = System.currentTimeMillis()
         val blockNum = blockEvent.blockNumber.toInt()
         println("Processing block $blockNum")
         val orgName = config["ORG"] as String
-	var validTx = 0
+        var validTx = 0
         val kvWrites = blockEvent.transactionEvents
                 // Filter the valid transactions
                 .filter { it.isValid }
                 // Get the set of KVWrites across all transactions
                 .flatMap { txEvent ->
-		    validTx++
+                    validTx++
                     txEvent.transactionActionInfos.flatMap { txActionInfo ->
                         txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                             nsRwsetInfo.rwset.writesList.map { kvWrite ->
-				println("KVWrite key: ${kvWrite.key}")
+				                println("KVWrite key: ${kvWrite.key}")
                                 KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                             }
                         }
@@ -224,24 +224,24 @@ class FabricClient(val orgId: String) {
             sendCommitmentHelper(accumulatorWrapper, blockNum, config)
         }
 	
-	endProcessingTime = System.currentTimeMillis()
-	val currBlockLatency = endProcessingTime - procTimeStart
-	avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
-	val currValidTxLatency = currBlockLatency/validTx
-	avgValidTxLatency = (validTxCount * avgValidTxLatency + currBlockLatency)/(validTxCount + validTx)
-	blockCount++
-	totalTxCount += blockEvent.transactionEvents.count()
-	validTxCount += validTx
-	blockTpsRunningAvg = 1000.0 * blockCount/(endProcessingTime - startProcessingTime)
-	totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
-	validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
-	println("Average block throughput = $blockTpsRunningAvg")
-	println("Average TPS = $totalTxTpsRunningAvg")
-	println("Average valid TPS = $validTxTpsRunningAvg")
-	println("Current block processing latency = $currBlockLatency")
-	println("Current valid Tx processing latency = $currValidTxLatency")
-	println("Average block processing latency = $avgBlockLatency")
-	println("Average valid Tx processing latency = $avgValidTxLatency")
+        endProcessingTime = System.currentTimeMillis()
+        val currBlockLatency = endProcessingTime - procTimeStart
+        avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
+        val currValidTxLatency = currBlockLatency/validTx
+        avgValidTxLatency = (validTxCount * avgValidTxLatency + currBlockLatency)/(validTxCount + validTx)
+        blockCount++
+        totalTxCount += blockEvent.transactionEvents.count()
+        validTxCount += validTx
+        blockTpsRunningAvg = 1000.0 * blockCount/(endProcessingTime - startProcessingTime)
+        totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
+        validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
+        println("Average block throughput = $blockTpsRunningAvg")
+        println("Average TPS = $totalTxTpsRunningAvg")
+        println("Average valid TPS = $validTxTpsRunningAvg")
+        println("Current block processing latency = $currBlockLatency")
+        println("Current valid Tx processing latency = $currValidTxLatency")
+        println("Average block processing latency = $avgBlockLatency")
+        println("Average valid Tx processing latency = $avgValidTxLatency")
     }
 
     /**
@@ -252,18 +252,10 @@ class FabricClient(val orgId: String) {
      * requested. If not, it can check the next oldest version of the state until a match is found.
      */
     fun getStateHistory(key: String, contract: Contract): Either<Error, List<KeyModification>> = try {
-        contract.fold({
-            println("Fabric Error: Error getting chaincode contract")
-            Left(Error("Fabric Error: Error getting chaincode contract"))
-        }, {
-            val queryHistoryChaincodeFn = config["QUERY_HISTORY_CC_FN"] as String
-            val historyResult = it.evaluateTransaction(queryHistoryChaincodeFn, key)
-	    println("History result: $historyResult")
-	    val historyJsonString = historyResult.toString(Charsets.UTF_8)
-	    println("History result as JSON string: $historyJsonString")
-            val result = Gson().fromJson(historyJsonString, Array<KeyModification>::class.java).toList()
-            Right(result)
-        })
+        val queryHistoryChaincodeFn = config["QUERY_HISTORY_CC_FN"] as String
+        val resultJSON = contract.evaluateTransaction(queryHistoryChaincodeFn, key).toString(Charsets.UTF_8)
+        val result = Gson().fromJson(resultJSON, Array<KeyModification>::class.java).toList()
+        Right(result)
     } catch (e: Exception) {
         println("Fabric Error: Error getting state history for key $key: ${e.message}")
         Left(Error("Fabric Error: Error getting state history for key $key: ${e.message}"))
