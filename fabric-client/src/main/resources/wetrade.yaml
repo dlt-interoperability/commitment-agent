@@ -1,0 +1,176 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+name: Fabric
+version: "1.0"
+mutual-tls: false
+
+caliper:
+  blockchain: fabric
+  #command:
+    #start: export FABRIC_VERSION=2.1.0;export FABRIC_CA_VERSION=1.4.4;docker-compose -f /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/docker-compose/2org1peergoleveldb_raft/docker-compose-tls.yaml up -d;sleep 3s
+    #end: docker-compose -f /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/docker-compose/2org1peergoleveldb_raft/docker-compose-tls.yaml down;(test -z \"$(docker ps -aq)\") || docker rm $(docker ps -aq);(test -z \"$(docker images dev* -q)\") || docker rmi $(docker images dev* -q);rm -rf /tmp/hfc-*
+
+info:
+  Version: 2.1.0
+  Size: 2 Orgs with 4 Peers
+  Orderer: Raft
+  Distribution: Single Host
+  StateDB: GoLevelDB
+
+client:
+  organization: BuyersBankOrg
+  credentialStore:
+    path: /tmp/hfc-kvs/buyersbankorg
+    cryptoStore:
+      path: /tmp/hfc-cvs/buyersbankorg
+  clientPrivateKey:
+    path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/users/User1@buyersbankorg-apactfn-com/msp/keystore/priv_sk
+  clientSignedCert:
+    path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/users/User1@buyersbankorg-apactfn-com/msp/signcerts/User1@buyersbankorg-apactfn-com-cert.pem
+
+channels:
+  apactfn-channel:
+    configBinary: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/channel.tx
+    created: false
+    orderers:
+    - orderer-apactfn-com
+    - orderer2-apactfn-com
+    - orderer3-apactfn-com
+    - orderer4-apactfn-com
+    - orderer5-apactfn-com
+    peers:
+      peer0-buyersbankorg-apactfn-com:
+        eventSource: false
+      peer1-buyersbankorg-apactfn-com:
+        eventSource: false
+      peer0-sellersbankorg-apactfn-com:
+        eventSource: false
+      peer1-sellersbankorg-apactfn-com:
+        eventSource: false
+
+    chaincodes:
+    - id: apactfncc
+      version: v1
+      language: golang
+      path: fabric/samples/wetrade
+
+organizations:
+  BuyersBankOrg:
+    mspid: BuyersBankOrgMSP
+    peers:
+    - peer0-buyersbankorg-apactfn-com
+    - peer1-buyersbankorg-apactfn-com
+    certificateAuthorities:
+    - ca-buyersbankorg
+    adminPrivateKey:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/users/Admin@buyersbankorg-apactfn-com/msp/keystore/priv_sk
+    signedCert:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/users/Admin@buyersbankorg-apactfn-com/msp/signcerts/Admin@buyersbankorg-apactfn-com-cert.pem
+  SellersBankOrg:
+    mspid: SellersBankOrgMSP
+    peers:
+    - peer0-sellersbankorg-apactfn-com
+    - peer1-sellersbankorg-apactfn-com
+    certificateAuthorities:
+    - ca-sellersbankorg
+    adminPrivateKey:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/sellersbankorg-apactfn-com/users/Admin@sellersbankorg-apactfn-com/msp/keystore/priv_sk
+    signedCert:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/sellersbankorg-apactfn-com/users/Admin@sellersbankorg-apactfn-com/msp/signcerts/Admin@sellersbankorg-apactfn-com-cert.pem
+
+orderers:
+  orderer-apactfn-com:
+    url: grpcs://localhost:7050
+    grpcOptions:
+      ssl-target-name-override: orderer-apactfn-com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/ordererOrganizations/apactfn-com/orderers/orderer-apactfn-com/msp/tlscacerts/tlsca.apactfn-com-cert.pem
+  orderer2-apactfn-com:
+    url: grpcs://localhost:8050
+    grpcOptions:
+      ssl-target-name-override: orderer2-apactfn-com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/ordererOrganizations/apactfn-com/orderers/orderer2-apactfn-com/msp/tlscacerts/tlsca.apactfn-com-cert.pem
+  orderer3-apactfn-com:
+    url: grpcs://localhost:9050
+    grpcOptions:
+      ssl-target-name-override: orderer3-apactfn-com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/ordererOrganizations/apactfn-com/orderers/orderer3-apactfn-com/msp/tlscacerts/tlsca.apactfn-com-cert.pem
+  orderer4-apactfn-com:
+    url: grpcs://localhost:10050
+    grpcOptions:
+      ssl-target-name-override: orderer4-apactfn-com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/ordererOrganizations/apactfn-com/orderers/orderer4-apactfn-com/msp/tlscacerts/tlsca.apactfn-com-cert.pem
+  orderer5-apactfn-com:
+    url: grpcs://localhost:11050
+    grpcOptions:
+      ssl-target-name-override: orderer5-apactfn-com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/ordererOrganizations/apactfn-com/orderers/orderer5-apactfn-com/msp/tlscacerts/tlsca.apactfn-com-cert.pem
+
+peers:
+  peer0-buyersbankorg-apactfn-com:
+    url: grpcs://peer0-buyersbankorg-apactfn-com:7051
+    grpcOptions:
+      ssl-target-name-override: peer0-buyersbankorg-apactfn-com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/peers/peer0-buyersbankorg-apactfn-com/msp/tlscacerts/tlsca.buyersbankorg-apactfn-com-cert.pem
+  peer1-buyersbankorg-apactfn-com:
+    url: grpcs://peer1-buyersbankorg-apactfn-com:8051
+    grpcOptions:
+      ssl-target-name-override: peer1-buyersbankorg-apactfn-com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/peers/peer1-buyersbankorg-apactfn-com/msp/tlscacerts/tlsca.buyersbankorg-apactfn-com-cert.pem
+  peer0-sellersbankorg-apactfn-com:
+    url: grpcs://peer0-sellersbankorg-apactfn-com:9051
+    grpcOptions:
+      ssl-target-name-override: peer0-sellersbankorg-apactfn-com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/sellersbankorg-apactfn-com/peers/peer0-sellersbankorg-apactfn-com/msp/tlscacerts/tlsca.sellersbankorg-apactfn-com-cert.pem
+  peer1-sellersbankorg-apactfn-com:
+    url: grpcs://peer1-sellersbankorg-apactfn-com:10051
+    grpcOptions:
+      ssl-target-name-override: peer1-sellersbankorg-apactfn-com
+      grpc.keepalive_time_ms: 600000
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/sellersbankorg-apactfn-com/peers/peer1-sellersbankorg-apactfn-com/msp/tlscacerts/tlsca.sellersbankorg-apactfn-com-cert.pem
+
+certificateAuthorities:
+  ca-buyersbankorg:
+    url: https://localhost:7054
+    caName: ca-buyersbankorg
+    httpOptions:
+      verify: false
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/buyersbankorg-apactfn-com/ca/ca.buyersbankorg-apactfn-com-cert.pem
+    registrar:
+    - enrollId: admin
+      enrollSecret: adminpw
+  ca-sellersbankorg:
+    url: https://localhost:8054
+    caName: ca-sellersbankorg
+    httpOptions:
+      verify: false
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/wetrade/crypto-config/peerOrganizations/sellersbankorg-apactfn-com/ca/ca.sellersbankorg-apactfn-com-cert.pem
+    registrar:
+    - enrollId: admin
+      enrollSecret: adminpw

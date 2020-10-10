@@ -17,58 +17,57 @@ import org.hyperledger.fabric_ca.sdk.RegistrationRequest
 import java.nio.file.Paths
 import java.security.PrivateKey
 import java.util.*
+import java.lang.System
 
 class FabricClient(val orgId: String) {
-    var gateway: Option<Gateway> = None
-    var network: Option<Network> = None
-    var contract: Option<Contract> = None
     val config = Properties()
-    val startProcessingTime = System.currentTimeMillis()
-    var blockCount = 0
-    var avgBlockLatency: Long = 0
-    var validTxCount = 0
-    var totalTxCount = 0  
-    var avgValidTxLatency: Long = 0
-    var blockTpsRunningAvg: Double = 0.0
-    var totalTxTpsRunningAvg: Double = 0.0
-    var validTxTpsRunningAvg: Double = 0.0
+    var startProcessingTime = -1L
+    var endProcessingTime = -1L
+    var blockCount = 0.0
+    var totalTxCount = 0.0
+    var validTxCount = 0.0
+    var blockTpsRunningAvg = 0.0
+    var totalTxTpsRunningAvg = 0.0
+    var validTxTpsRunningAvg = 0.0
+    var avgBlockLatency = 0.0
+    var avgValidTxLatency = 0.0
 
     init {
         // Load the config properties from the file in src/main/resources
         this::class.java.getResourceAsStream("/${orgId}config.properties")
                 .use { config.load(it) }
-        // First enroll an admin and user
+    }
+
+    fun initialize() {
         enrollAdmin()
         registerUser()
-        // Create a gateway connection
-        try {
-            println("Attempting to connect to Fabric network")
-            gateway = Some(connect())
-            println("Connected!")
-            network = gateway.map { it.getNetwork(config["CHANNEL"] as String) }
-            contract = network.map { it.getContract(config["CHAINCODE"] as String) }
-        } catch (e: Exception) {
-            println("Fabric Error: Error creating network connection: ${e.message}")
-        }
+        val orgName = config["ORG"] as String
+        val seed1 = (config["SEED1"] as String).toLong()
+        val seed2 = (config["SEED2"] as String).toLong()
+        val seed3 = (config["SEED3"] as String).toLong()
+        initialiseAccumulator(1, orgName, seed1, seed2, seed3)
     }
 
-    fun start() = try {
-        // The first block that is streamable from the Fabric peer is block 2.
-        // Get all blocks from block 2 onwards and start listening for new block events.
-        // All block events are processed by the handleBlockEvent function.
-        this.network.map { it.addBlockListener(2, ::handleBlockEvent) }
-    } catch (e: Exception) {
-        println("Fabric Error: Error creating block listener: ${e.message}")
-    }
-
-    suspend fun initialize() = try {
+    fun setManagementCommittee() = try {
+        println("setting the management committee")
         // Send the set of public keys to the Ethereum client to initialise the management committee
         getFabricAgentPublicKeys().map {
-            coroutineScope { sendCommitteeHelper(it, config) }
+            runBlocking { sendCommitteeHelper(it, config) }
         }
     } catch (e: Exception) {
         println("Fabric Error: Error creating block listener: ${e.message}")
         Left(Error("Fabric Error: Error creating block listener: ${e.message}"))
+    }
+
+    fun start() {
+        // Create a connection to the Fabric peer
+        println("Attempting to connect to Fabric network")
+        connect().map { (network, _) ->
+            // The first block that is streamable from the Fabric peer is block 2.
+            // Get all blocks from block 2 onwards and start listening for new block events.
+            // All block events are processed by the handleBlockEvent function.
+            network.addBlockListener(2, ::handleBlockEvent)
+        }
     }
 
     fun enrollAdmin() {
@@ -148,8 +147,8 @@ class FabricClient(val orgId: String) {
         return caClient
     }
 
-    // Helper function for connecting to the gateway
-    fun connect(): Gateway {
+    // Helper function for connecting to the Fabric network
+    fun connect(): Either<Error, Tuple2<Network, Contract>> {
         // Load a file system based wallet for managing identities.
         val walletPath = Paths.get("wallet")
         val wallet = Wallets.newFileSystemWallet(walletPath)
@@ -162,7 +161,21 @@ class FabricClient(val orgId: String) {
                 .identity(wallet, user)
                 .networkConfig(networkConfigFile)
                 .discovery(true)
-        return builder.connect()
+        val gateway = builder.connect()
+        println("Connected!")
+        val network: Network? = gateway.getNetwork(config["CHANNEL"] as String)
+        return if (network == null) {
+            println("Fabric Error: Error creating Fabric network connection")
+            Left(Error("Fabric Error: Error creating Fabric network connection"))
+        } else {
+            val contract: Contract? = network?.getContract(config["CHAINCODE"] as String)
+            if (contract == null) {
+                println("Fabric Error: Error getting Fabric network contract")
+                Left(Error("Fabric Error: Error getting Fabric network contract"))
+            } else {
+                Right(Tuple2(network, contract))
+            }
+        }
     }
 
     /**
@@ -172,43 +185,48 @@ class FabricClient(val orgId: String) {
      * the accumulator is not updated but stored as-is under a new block height.
      */
     fun handleBlockEvent(blockEvent: BlockEvent) {
-        val procTimeStart = System.currentTimeMillis()
-	var validTx = 0
+	// Assume that a 10-second inactive period means measurement must be restarted
+    	if (startProcessingTime < 0 || System.currentTimeMillis() - endProcessingTime > 10000) {
+	    startProcessingTime = System.currentTimeMillis()
+    	    blockCount = 0.0
+    	    totalTxCount = 0.0
+    	    validTxCount = 0.0
+	    blockTpsRunningAvg = 0.0
+	    totalTxTpsRunningAvg = 0.0
+    	    validTxTpsRunningAvg = 0.0
+	    avgBlockLatency = 0.0
+	    avgValidTxLatency = 0.0
+	    println("Restarting measurement at epoch $startProcessingTime")
+	}
+	var procTimeStart = System.currentTimeMillis()
         val blockNum = blockEvent.blockNumber.toInt()
         println("Processing block $blockNum")
         val orgName = config["ORG"] as String
+	var validTx = 0
         val kvWrites = blockEvent.transactionEvents
                 // Filter the valid transactions
                 .filter { it.isValid }
                 // Get the set of KVWrites across all transactions
                 .flatMap { txEvent ->
+		    validTx++
                     txEvent.transactionActionInfos.flatMap { txActionInfo ->
                         txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                             nsRwsetInfo.rwset.writesList.map { kvWrite ->
-                                println("KvWrite: $kvWrite")
-				validTx++
+				println("KVWrite key: ${kvWrite.key}")
                                 KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                             }
                         }
                     }
                 }
-        // If this is the first block streamed (which is block 2), initialise the accumulator
-        if (blockNum == 2) {
-            val seed1 = (config["SEED1"] as String).toLong()
-            val seed2 = (config["SEED2"] as String).toLong()
-            val seed3 = (config["SEED3"] as String).toLong()
-           initialiseAccumulator(blockNum, kvWrites, orgName, seed1, seed2, seed3)
-        } else {
-            // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-            updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
-                // Then send the accumulator to the Ethereum client for publishing
-                runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
-            }
+        // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
+        updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
+            // Then send the accumulator to the Ethereum client for publishing
+            sendCommitmentHelper(accumulatorWrapper, blockNum, config)
         }
 	
-        val endProcessingTime = System.currentTimeMillis()
-        val currBlockLatency = endProcessingTime - procTimeStart
-	val avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
+	endProcessingTime = System.currentTimeMillis()
+	val currBlockLatency = endProcessingTime - procTimeStart
+	avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
 	val currValidTxLatency = currBlockLatency/validTx
 	avgValidTxLatency = (validTxCount * avgValidTxLatency + currBlockLatency)/(validTxCount + validTx)
 	blockCount++
@@ -217,7 +235,7 @@ class FabricClient(val orgId: String) {
 	blockTpsRunningAvg = 1000.0 * blockCount/(endProcessingTime - startProcessingTime)
 	totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
 	validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
-        println("Average block throughput = $blockTpsRunningAvg")
+	println("Average block throughput = $blockTpsRunningAvg")
 	println("Average TPS = $totalTxTpsRunningAvg")
 	println("Average valid TPS = $validTxTpsRunningAvg")
 	println("Current block processing latency = $currBlockLatency")
@@ -227,33 +245,13 @@ class FabricClient(val orgId: String) {
     }
 
     /**
-     * The getState function is used to retrieve a state from the Fabric ledger on request from
-     * an external client. This assumes that the version of the state corresponding to the accumulator
-     * the external client has requested is the latest version of the state on the ledger. This is
-     * obviously not always going to be a valid assumption.
-     */
-    fun getState(key: String): Either<Error, String> = try {
-        contract.fold({
-            println("Fabric Error: Error getting chaincode contract")
-            Left(Error("Fabric Error: Error getting chaincode contract"))
-        }, {
-            val resultJSON = it.evaluateTransaction("ReadAsset", key).toString(Charsets.UTF_8)
-            val result = Gson().fromJson(resultJSON, GetStateResult::class.java)
-            Right(result.data.toString(Charsets.UTF_8))
-        })
-    } catch (e: Exception) {
-        println("Fabric Error: Error getting state $key: ${e.message}")
-        Left(Error("Fabric Error: Error getting state $key: ${e.message}"))
-    }
-
-    /**
      * The getStateHistory function is used to retrieve a state from the Fabric ledger on request from
      * an external client. This function returns every version of the state that has existed. This means
      * the caller of the function (createProof function in AccumulatorManager) can check if the
      * latest version of the state is present in the accumulator version the external client has
      * requested. If not, it can check the next oldest version of the state until a match is found.
      */
-    fun getStateHistory(key: String): Either<Error, List<KeyModification>> = try {
+    fun getStateHistory(key: String, contract: Contract): Either<Error, List<KeyModification>> = try {
         contract.fold({
             println("Fabric Error: Error getting chaincode contract")
             Left(Error("Fabric Error: Error getting chaincode contract"))
@@ -272,6 +270,5 @@ class FabricClient(val orgId: String) {
     }
 }
 
-data class GetStateResult(val type: String, val data: ByteArray)
 data class KeyModification(val timestamp: Timestamp, val value: String, val txId: String, val isDelete: Boolean)
 data class Timestamp(val seconds: String, val nanos: Int)

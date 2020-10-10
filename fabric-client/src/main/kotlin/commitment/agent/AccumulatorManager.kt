@@ -16,7 +16,6 @@ import java.util.Base64
 
 fun initialiseAccumulator(
         blockNum: Int,
-        kvWrites: List<KvWrite>,
         orgName: String,
         seed1: Long,
         seed2: Long,
@@ -25,29 +24,21 @@ fun initialiseAccumulator(
     println("Initialising the accumulator for blockNum: $blockNum")
     val db = MapDb()
 
-    // If this is the first block we need to initialise the accumulator
+    // Create an accumulator
     val accumulator = RSAAccumulator.newInstance(seed1, seed2, seed3)
 
-    // Convert each of the KVWrites to a hash and add to the accumulator.
-    // Note that if this is an empty list the accumulator doesn't get updated.
-    val finalAccumulator = kvWrites.fold(accumulator, { acc,  kvWrite ->
-        val jsonString = Gson().toJson(kvWrite, KvWrite::class.java)
-        val kvHash = hashStringToBigInt(jsonString)
-        add(kvHash).run(acc).a
-    })
-
     // Initialise the rolling hash for the accumulator
-    val digest = MessageDigest.getInstance("SHA-256").digest(finalAccumulator.a.toByteArray())
+    val digest = MessageDigest.getInstance("SHA-256").digest(accumulator.a.toByteArray())
     val rollingHash = Base64.getEncoder().encodeToString(digest)
     println("Rolling hash: $rollingHash")
 
     // Convert the accumulator + hash wrapper type to a JSON string and store in the DB
-    val accumulatorWrapper = AccumulatorWrapper(finalAccumulator, rollingHash)
+    val accumulatorWrapper = AccumulatorWrapper(accumulator, rollingHash)
     val accumulatorWrapperJson = Gson().toJson(accumulatorWrapper, AccumulatorWrapper::class.java)
     db.start(blockNum, accumulatorWrapperJson, orgName).map { accumulatorWrapper }
 } catch (e: Exception) {
-    println("Accumulator Error: Error updating accumulator: ${e.message}")
-    Left(Error("Accumulator Error: Error updating accumulator: ${e.message}"))
+    println("Accumulator Error: Error initialising accumulator: ${e.message}")
+    Left(Error("Accumulator Error: Error initialising accumulator: ${e.message}"))
 }
 
 /**
@@ -116,9 +107,8 @@ fun createProof(
         key: String,
         ethCommitment: CommitmentOuterClass.Commitment,
         orgName: String
-): Either<Error, Proof> {
-    val db = MapDb()
-    val proof = db.get(ethCommitment.blockHeight, orgName).map {
+): Either<Error, Proof> =
+    MapDb().get(ethCommitment.blockHeight, orgName).map {
         Gson().fromJson(it, AccumulatorWrapper::class.java)
     }.flatMap { accumulatorWrapper ->
         val accumulator = accumulatorWrapper.accumulator
@@ -126,7 +116,9 @@ fun createProof(
         // accumulator the external client sent for the block height
         if (accumulator.a.toString().contains(ethCommitment.accumulator)) {
             val fabricClient = FabricClient(orgName)
-            fabricClient.getStateHistory(key).flatMap { history ->
+            fabricClient.connect().flatMap { (_, contract) ->
+                fabricClient.getStateHistory(key, contract)
+            }.flatMap { history ->
                 // Find the first state in the history that is present in the accumulator.
                 val keyModification = history.find { isStateInAccumulator(key, it, accumulator) }
                 if (keyModification != null) {
@@ -138,7 +130,7 @@ fun createProof(
                     )
                     val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
                     val kvHash = hashStringToBigInt(kvJson)
-                    res.dlt.accumulator.createProof(kvHash).run(accumulator).b.map { proof ->
+                    val proof = res.dlt.accumulator.createProof(kvHash).run(accumulator).b.map { proof ->
                         Proof.newBuilder()
                                 .setState(kvJson)
                                 .setProof(proof.proof.toString())
@@ -146,6 +138,8 @@ fun createProof(
                                 .setN(proof.n.toString())
                                 .build()
                     }
+                    println("Created proof: $proof\n")
+                    proof
                 } else {
                     println("Request Error: No state with that key was found.\n")
                     Left(Error("Request Error: No state with that key was found."))
@@ -156,10 +150,6 @@ fun createProof(
             Left(Error("The accumulator provided by the external client does not match the stored accumulator for that block height."))
         }
     }
-    println("Created proof: $proof\n")
-    return proof
-}
-
 
 fun isStateInAccumulator(key: String, keyModification: KeyModification, accumulator: RSAAccumulator): Boolean {
     // Recreate the kvWrite that was used in the accumulator

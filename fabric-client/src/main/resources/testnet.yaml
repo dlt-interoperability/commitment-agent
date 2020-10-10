@@ -30,6 +30,19 @@ info:
   Distribution: Single Host
   StateDB: GoLevelDB
 
+clients:
+  client0.org1.network1.com:
+    client:
+      organization: Org1
+      credentialStore:
+        path: /tmp/hfc-kvs/org1
+        cryptoStore:
+          path: /tmp/hfc-cvs/org1
+      clientPrivateKey:
+        path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/User1@org1.network1.com/msp/keystore/4e68ada15ad60c13691df1afff86c37f06dfb61a72fd8a88a52776ca453de707_sk
+      clientSignedCert:
+        path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/User1@org1.network1.com/msp/signcerts/cert.pem
+
 client:
   organization: Org1
   credentialStore:
@@ -40,7 +53,6 @@ client:
     path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/User1@org1.network1.com/msp/keystore/4e68ada15ad60c13691df1afff86c37f06dfb61a72fd8a88a52776ca453de707_sk
   clientSignedCert:
     path: /opt/gopath/src/github.com/hyperledger/caliper-benchmarks/networks/fabric/testnet/crypto-config/peerOrganizations/org1.network1.com/users/User1@org1.network1.com/msp/signcerts/cert.pem
-
 
 channels:
   mychannel:
