@@ -11,6 +11,7 @@ import res.dlt.accumulator.RSAAccumulator
 import res.dlt.accumulator.add
 import res.dlt.accumulator.delete
 import res.dlt.accumulator.hashStringToBigInt
+import res.dlt.accumulator.isMember
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -160,7 +161,7 @@ fun isStateInAccumulator(key: String, keyModification: KeyModification, accumula
     )
     val kvJson = Gson().toJson(kvWrite, KvWrite::class.java)
     val kvHash = hashStringToBigInt(kvJson)
-    return accumulator.data.contains(kvHash)
+    return isMember(kvHash).run(accumulator).b
 }
 
 data class KvWrite(val key: String, val value: String, val isDelete: Boolean)
