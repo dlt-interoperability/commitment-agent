@@ -1,0 +1,69 @@
+Performance results testnet (network1) running smallbank chaincode.
+Commitment agent on commit cbdbede1
+Accumulator on commit 72b4daf0
+This is the new version of the accumulator (efficient delete and proof 
+of membership) that no longer has the <key, nonce> data map included 
+in the accumulator.
+
+Blocks 1-120
+Average block throughput = 6.823221697844999
+Average TPS = 68.23221697845
+Average valid TPS = 68.23221697845
+Current block processing latency = 398
+Current valid Tx processing latency = 39
+Average block processing latency = 146.06666666666655
+Average valid Tx processing latency = 14.606666666666667
+
+Blocks 121-240
+Average block throughput = 7.23589001447178
+Average TPS = 72.3589001447178
+Average valid TPS = 72.3589001447178
+Current block processing latency = 114
+Current valid Tx processing latency = 11
+Average block processing latency = 137.81666666666672
+Average valid Tx processing latency = 13.781666666666666
+
+Blocks 241-360
+Average block throughput = 7.204178423485621
+Average TPS = 72.04178423485622
+Average valid TPS = 72.04178423485622
+Current block processing latency = 112
+Current valid Tx processing latency = 11
+Average block processing latency = 138.46666666666667
+Average valid Tx processing latency = 13.846666666666666
+
+Blocks 361-480
+Average block throughput = 7.246376811594203
+Average TPS = 72.46376811594203
+Average valid TPS = 72.46376811594203
+Current block processing latency = 114
+Current valid Tx processing latency = 11
+Average block processing latency = 137.68333333333334
+Average valid Tx processing latency = 13.76833333333333
+
+Blocks 481-600
+Average block throughput = 7.200720072007201
+Average TPS = 72.007200720072
+Average valid TPS = 72.007200720072
+Current block processing latency = 117
+Current valid Tx processing latency = 11
+Average block processing latency = 138.53333333333342
+Average valid Tx processing latency = 13.853333333333333
+
+Blocks 601-720
+Average block throughput = 7.2520698616063335
+Average TPS = 72.52069861606333
+Average valid TPS = 72.52069861606333
+Current block processing latency = 117
+Current valid Tx processing latency = 11
+Average block processing latency = 137.5666666666666
+Average valid Tx processing latency = 13.75666666666667
+
+Blocks 721-840
+
+Blocks 841-960
+
+Blocks 961-1080
+
+Blocks 1081-1200
+
