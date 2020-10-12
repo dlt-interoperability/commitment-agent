@@ -2,9 +2,6 @@ package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
@@ -15,7 +12,6 @@ import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
 import java.io.File
-import java.io.FileOutputStream
 import java.nio.file.Paths
 import java.security.PrivateKey
 import java.util.*
@@ -32,7 +28,6 @@ class FabricClient(val orgId: String) {
     var totalTxTpsRunningAvg = 0.0
     var validTxTpsRunningAvg = 0.0
     var avgBlockLatency = 0.0
-    var avgValidTxLatency = 0.0
 
     init {
         // Load the config properties from the file in src/main/resources
@@ -197,7 +192,6 @@ class FabricClient(val orgId: String) {
             totalTxTpsRunningAvg = 0.0
             validTxTpsRunningAvg = 0.0
             avgBlockLatency = 0.0
-            avgValidTxLatency = 0.0
             println("Restarting measurement at epoch $startProcessingTime")
 	    }
         var procTimeStart = System.currentTimeMillis()
@@ -229,8 +223,6 @@ class FabricClient(val orgId: String) {
         endProcessingTime = System.currentTimeMillis()
         val currBlockLatency = endProcessingTime - procTimeStart
         avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
-        val currValidTxLatency = currBlockLatency/validTx
-        avgValidTxLatency = (validTxCount * avgValidTxLatency + currBlockLatency)/(validTxCount + validTx)
         blockCount++
         totalTxCount += blockEvent.transactionEvents.count()
         validTxCount += validTx
@@ -238,23 +230,19 @@ class FabricClient(val orgId: String) {
         totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
         validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
         if (blockNum != 4 && (blockNum - 4) % 120 == 0) {
-            FileOutputStream(File(config["RESULTS_FILE"] as String), true).bufferedWriter().use { writer ->
-                writer.append("\nNext set of blocks up to $blockNum")
-                writer.append("Average block throughput = $blockTpsRunningAvg")
-                writer.append("\nAverage TPS = $totalTxTpsRunningAvg")
-                writer.append("\nAverage valid TPS = $validTxTpsRunningAvg")
-                writer.append("\nCurrent block processing latency = $currBlockLatency")
-                writer.append("\nCurrent valid Tx processing latency = $currValidTxLatency")
-                writer.append("\nAverage block processing latency = $avgBlockLatency")
-                writer.append("\nAverage valid Tx processing latency = $avgValidTxLatency\n")
-            }
+            val resultsFile = File(config["RESULTS_FILE"] as String)
+            resultsFile.appendText("\nNext set of blocks up to $blockNum")
+            resultsFile.appendText("\nAverage block throughput = $blockTpsRunningAvg")
+            resultsFile.appendText("\nAverage TPS = $totalTxTpsRunningAvg")
+            resultsFile.appendText("\nAverage valid TPS = $validTxTpsRunningAvg")
+            resultsFile.appendText("\nCurrent block processing latency = $currBlockLatency")
+            resultsFile.appendText("\nAverage block processing latency = $avgBlockLatency\n")
+
             println("Average block throughput = $blockTpsRunningAvg")
             println("Average TPS = $totalTxTpsRunningAvg")
             println("Average valid TPS = $validTxTpsRunningAvg")
             println("Current block processing latency = $currBlockLatency")
-            println("Current valid Tx processing latency = $currValidTxLatency")
             println("Average block processing latency = $avgBlockLatency")
-            println("Average valid Tx processing latency = $avgValidTxLatency")
         }
     }
 
