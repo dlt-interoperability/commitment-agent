@@ -14,6 +14,8 @@ import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
+import java.io.File
+import java.io.FileOutputStream
 import java.nio.file.Paths
 import java.security.PrivateKey
 import java.util.*
@@ -235,13 +237,25 @@ class FabricClient(val orgId: String) {
         blockTpsRunningAvg = 1000.0 * blockCount/(endProcessingTime - startProcessingTime)
         totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
         validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
-        println("Average block throughput = $blockTpsRunningAvg")
-        println("Average TPS = $totalTxTpsRunningAvg")
-        println("Average valid TPS = $validTxTpsRunningAvg")
-        println("Current block processing latency = $currBlockLatency")
-        println("Current valid Tx processing latency = $currValidTxLatency")
-        println("Average block processing latency = $avgBlockLatency")
-        println("Average valid Tx processing latency = $avgValidTxLatency")
+        if (blockNum != 4 && (blockNum - 4) % 120 == 0) {
+            FileOutputStream(File(config["RESULTS_FILE"] as String), true).bufferedWriter().use { writer ->
+                writer.append("\nNext set of blocks up to $blockNum")
+                writer.append("Average block throughput = $blockTpsRunningAvg")
+                writer.append("\nAverage TPS = $totalTxTpsRunningAvg")
+                writer.append("\nAverage valid TPS = $validTxTpsRunningAvg")
+                writer.append("\nCurrent block processing latency = $currBlockLatency")
+                writer.append("\nCurrent valid Tx processing latency = $currValidTxLatency")
+                writer.append("\nAverage block processing latency = $avgBlockLatency")
+                writer.append("\nAverage valid Tx processing latency = $avgValidTxLatency\n")
+            }
+            println("Average block throughput = $blockTpsRunningAvg")
+            println("Average TPS = $totalTxTpsRunningAvg")
+            println("Average valid TPS = $validTxTpsRunningAvg")
+            println("Current block processing latency = $currBlockLatency")
+            println("Current valid Tx processing latency = $currValidTxLatency")
+            println("Average block processing latency = $avgBlockLatency")
+            println("Average valid Tx processing latency = $avgValidTxLatency")
+        }
     }
 
     /**
