@@ -2,6 +2,8 @@ package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
@@ -217,7 +219,7 @@ class FabricClient(val orgId: String) {
         // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
         updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
             // Then send the accumulator to the Ethereum client for publishing
-            sendCommitmentHelper(accumulatorWrapper, blockNum, config)
+            runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
         }
 	
         endProcessingTime = System.currentTimeMillis()
@@ -231,12 +233,12 @@ class FabricClient(val orgId: String) {
         validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
         if (blockNum != 4 && (blockNum - 4) % 120 == 0) {
             val resultsFile = File(config["RESULTS_FILE"] as String)
-            resultsFile.appendText("\nNext set of blocks up to $blockNum")
-            resultsFile.appendText("\nAverage block throughput = $blockTpsRunningAvg")
-            resultsFile.appendText("\nAverage TPS = $totalTxTpsRunningAvg")
-            resultsFile.appendText("\nAverage valid TPS = $validTxTpsRunningAvg")
-            resultsFile.appendText("\nCurrent block processing latency = $currBlockLatency")
-            resultsFile.appendText("\nAverage block processing latency = $avgBlockLatency\n")
+            resultsFile.appendText("\nNext set of blocks up to $blockNum" +
+                    "\nAverage block throughput = $blockTpsRunningAvg" +
+                    "\nAverage TPS = $totalTxTpsRunningAvg" +
+                    "\nAverage valid TPS = $validTxTpsRunningAvg" +
+                    "\nCurrent block processing latency = $currBlockLatency" +
+                    "\nAverage block processing latency = $avgBlockLatency\n")
 
             println("Average block throughput = $blockTpsRunningAvg")
             println("Average TPS = $totalTxTpsRunningAvg")
