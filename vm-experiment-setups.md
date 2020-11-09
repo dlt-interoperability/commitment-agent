@@ -8,7 +8,7 @@
   `/opt/gopath/src/github.com/dlt-interoperability/fabric-network`
 - Fabric smallbank testnet:
   `/opt/gopath/src/github.com/dlt-interoperability/network-setups/dev/fabric`
-- Fabric Trade testnet: `/opt/gopath/src/github.com/HyperledgerHandsOn/trade-network`
+- Fabric Trade testnet: `/opt/gopath/src/github.com/HyperledgerHandsOn/trade-network/bash`
 - Bulletin Board:
   `/opt/gopath/src/github.com/dlt-interoperability/bulletin-board`
 - Ethereum client:
@@ -61,10 +61,10 @@ RSA accumulator: `./gradlew build publishToMavenLocal`
 
 ### Trade Fabric network with two agents
 
-- Fabric trade testnet: `./bash/trade.sh up -m prod`
-- Fabric trade testnet: `./bash/startAndJoinChannels.sh`
-- Fabric trade testnet: `./bash/trade.sh installcontract -c tradechannel -p trade -o 3`
-- Fabric trade testnet: `./bash/trade.sh initcontract -c tradechannel -p trade -t init`
+- Fabric trade testnet: `./trade.sh up -m prod`
+- Fabric trade testnet: `./startAndJoinChannels.sh`
+- Fabric trade testnet: `./trade.sh installcontract -c tradechannel -p trade -o 3`
+- Fabric trade testnet: `./trade.sh initcontract -c tradechannel -p trade -t init`
 - Bulletin board: `npx ganache-cli --deterministic`
 - Ethereum client: `make start-ethereum ORG="tradeimp"`
 - Ethereum client: `make start-ethereum ORG="tradeexp" LC_ADDRESS="0xe78a0f7e598cc8b0bb87894b0f60dd2a88d6a8ab"`
