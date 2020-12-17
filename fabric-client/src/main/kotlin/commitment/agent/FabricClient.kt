@@ -2,8 +2,6 @@ package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
@@ -13,6 +11,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
+import org.mapdb.DB
 import java.io.File
 import java.nio.file.Paths
 import java.security.PrivateKey
@@ -40,11 +39,6 @@ class FabricClient(val orgId: String) {
     fun initialize() {
         enrollAdmin()
         registerUser()
-        val orgName = config["ORG"] as String
-        val seed1 = (config["SEED1"] as String).toLong()
-        val seed2 = (config["SEED2"] as String).toLong()
-        val seed3 = (config["SEED3"] as String).toLong()
-        initialiseAccumulator(1, orgName, seed1, seed2, seed3)
     }
 
     fun setManagementCommittee() = try {
@@ -58,14 +52,19 @@ class FabricClient(val orgId: String) {
         Left(Error("Fabric Error: Error creating block listener: ${e.message}"))
     }
 
-    fun start() {
+    fun start(db: DB) {
+        val orgName = config["ORG"] as String
+        val seed1 = (config["SEED1"] as String).toLong()
+        val seed2 = (config["SEED2"] as String).toLong()
+        val seed3 = (config["SEED3"] as String).toLong()
+        initialiseAccumulator(db, 1, orgName, seed1, seed2, seed3)
         // Create a connection to the Fabric peer
         println("Attempting to connect to Fabric network")
         connect().map { (network, _) ->
             // The first block that is streamable from the Fabric peer is block 2.
             // Get all blocks from block 2 onwards and start listening for new block events.
             // All block events are processed by the handleBlockEvent function.
-            network.addBlockListener(2, ::handleBlockEvent)
+            network.addBlockListener(2) { blockEvent -> handleBlockEvent(blockEvent, db) }
         }
     }
 
@@ -183,7 +182,7 @@ class FabricClient(val orgId: String) {
      * all of the KVWrites across all the valid transactions in the block. If there are no KVWrites
      * the accumulator is not updated but stored as-is under a new block height.
      */
-    fun handleBlockEvent(blockEvent: BlockEvent) {
+    fun handleBlockEvent(blockEvent: BlockEvent, db: DB) {
 	    // Assume that a 10-second inactive period means measurement must be restarted
     	if (startProcessingTime < 0 || System.currentTimeMillis() - endProcessingTime > 10000) {
             startProcessingTime = System.currentTimeMillis()
@@ -217,7 +216,7 @@ class FabricClient(val orgId: String) {
                     }
                 }
         // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-        updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
+        updateAccumulator(db, blockNum, kvWrites, orgName).map { accumulatorWrapper ->
             // Then send the accumulator to the Ethereum client for publishing
             runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
         }
