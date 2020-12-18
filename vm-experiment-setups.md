@@ -19,6 +19,18 @@
   `/opt/gopath/src/github.com/dlt-interoperability/external-client`
 - Caliper: `/opt/gopath/src/github.com/hyperledger/caliper-benchmarks`
 
+### VM Setup
+
+A VM has been set up to run performance analysis of the commitment agent at `fc-2020-currency-test-1.sl.cloud9.ibm.com`. 
+It has the required components set up in panes in a tmux session. 
+To attach to this session use `tmux attach`. Each of the repositories is in a separate window, which are visible in the bottom row of the tmux session.
+To switch between windows use `ctrl-a <window number>`. 
+Some windows have multiple panes for when multiple processes need to be run simultaneously. 
+To move between panes use `ctrl-h, ctrl-j, ctrl-k, ctrl-l` for left, down, up, right, respectively. 
+To create a new window use `ctrl-a c` and then to rename it use `ctrl-a ,`.
+To create a new pane with a vertical split use `ctrl-a |` or `ctrl-a \`. 
+To create a new pane with a horizontal split use `ctrl-a -`.
+
 ### Pre-requisite for all scenarios:
 
 RSA accumulator: `./gradlew build publishToMavenLocal`
