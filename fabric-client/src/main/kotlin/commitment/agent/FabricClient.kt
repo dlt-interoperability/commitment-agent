@@ -2,9 +2,6 @@ package commitment.agent.fabric.client
 
 import arrow.core.*
 import com.google.gson.Gson
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.hyperledger.fabric.gateway.*
 import org.hyperledger.fabric.sdk.BlockEvent
@@ -14,12 +11,24 @@ import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest
 import org.hyperledger.fabric_ca.sdk.HFCAClient
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest
+import org.mapdb.DB
+import java.io.File
 import java.nio.file.Paths
 import java.security.PrivateKey
 import java.util.*
+import java.lang.System
 
 class FabricClient(val orgId: String) {
     val config = Properties()
+    var startProcessingTime = -1L
+    var endProcessingTime = -1L
+    var blockCount = 0.0
+    var totalTxCount = 0.0
+    var validTxCount = 0.0
+    var blockTpsRunningAvg = 0.0
+    var totalTxTpsRunningAvg = 0.0
+    var validTxTpsRunningAvg = 0.0
+    var avgBlockLatency = 0.0
 
     init {
         // Load the config properties from the file in src/main/resources
@@ -30,11 +39,6 @@ class FabricClient(val orgId: String) {
     fun initialize() {
         enrollAdmin()
         registerUser()
-        val orgName = config["ORG"] as String
-        val seed1 = (config["SEED1"] as String).toLong()
-        val seed2 = (config["SEED2"] as String).toLong()
-        val seed3 = (config["SEED3"] as String).toLong()
-        initialiseAccumulator(1, orgName, seed1, seed2, seed3)
     }
 
     fun setManagementCommittee() = try {
@@ -48,16 +52,21 @@ class FabricClient(val orgId: String) {
         Left(Error("Fabric Error: Error creating block listener: ${e.message}"))
     }
 
-    fun start() {
+    fun start(db: DB) {
+        val orgName = config["ORG"] as String
+        val seed1 = (config["SEED1"] as String).toLong()
+        val seed2 = (config["SEED2"] as String).toLong()
+        val seed3 = (config["SEED3"] as String).toLong()
+        initialiseAccumulator(db, 1, orgName, seed1, seed2, seed3)
         // Create a connection to the Fabric peer
         println("Attempting to connect to Fabric network")
         connect().map { (network, _) ->
             // The first block that is streamable from the Fabric peer is block 2.
             // Get all blocks from block 2 onwards and start listening for new block events.
             // All block events are processed by the handleBlockEvent function.
-            network.addBlockListener(2, ::handleBlockEvent)
+            network.addBlockListener(2) { blockEvent -> handleBlockEvent(blockEvent, db) }
         }
-}
+    }
 
     fun enrollAdmin() {
         val caClient = createCaClient()
@@ -173,29 +182,68 @@ class FabricClient(val orgId: String) {
      * all of the KVWrites across all the valid transactions in the block. If there are no KVWrites
      * the accumulator is not updated but stored as-is under a new block height.
      */
-    fun handleBlockEvent(blockEvent: BlockEvent) {
+    fun handleBlockEvent(blockEvent: BlockEvent, db: DB) {
+	    // Assume that a 10-second inactive period means measurement must be restarted
+    	if (startProcessingTime < 0 || System.currentTimeMillis() - endProcessingTime > 10000) {
+            startProcessingTime = System.currentTimeMillis()
+            blockCount = 0.0
+            totalTxCount = 0.0
+            validTxCount = 0.0
+            blockTpsRunningAvg = 0.0
+            totalTxTpsRunningAvg = 0.0
+            validTxTpsRunningAvg = 0.0
+            avgBlockLatency = 0.0
+            println("Restarting measurement at epoch $startProcessingTime")
+	    }
+        var procTimeStart = System.currentTimeMillis()
         val blockNum = blockEvent.blockNumber.toInt()
         println("Processing block $blockNum")
         val orgName = config["ORG"] as String
+        var validTx = 0
         val kvWrites = blockEvent.transactionEvents
                 // Filter the valid transactions
                 .filter { it.isValid }
                 // Get the set of KVWrites across all transactions
                 .flatMap { txEvent ->
+                    validTx++
                     txEvent.transactionActionInfos.flatMap { txActionInfo ->
                         txActionInfo.txReadWriteSet.nsRwsetInfos.flatMap { nsRwsetInfo ->
                             nsRwsetInfo.rwset.writesList.map { kvWrite ->
-                                println("KvWrite: $kvWrite")
+				                println("KVWrite key: ${kvWrite.key}")
                                 KvWrite(kvWrite.key, kvWrite.value.toStringUtf8(), kvWrite.isDelete)
                             }
                         }
                     }
                 }
-
         // Trigger the update of the accumulator for the block with the list of all KVWrites for the block
-        updateAccumulator(blockNum, kvWrites, orgName).map { accumulatorWrapper ->
+        updateAccumulator(db, blockNum, kvWrites, orgName).map { accumulatorWrapper ->
             // Then send the accumulator to the Ethereum client for publishing
-            sendCommitmentHelper(accumulatorWrapper, blockNum, config)
+            runBlocking { sendCommitmentHelper(accumulatorWrapper, blockNum, config) }
+        }
+	
+        endProcessingTime = System.currentTimeMillis()
+        val currBlockLatency = endProcessingTime - procTimeStart
+        avgBlockLatency = (blockCount * avgBlockLatency + currBlockLatency)/(blockCount + 1)
+        blockCount++
+        totalTxCount += blockEvent.transactionEvents.count()
+        validTxCount += validTx
+        blockTpsRunningAvg = 1000.0 * blockCount/(endProcessingTime - startProcessingTime)
+        totalTxTpsRunningAvg = 1000.0 * totalTxCount/(endProcessingTime - startProcessingTime)
+        validTxTpsRunningAvg = 1000.0 * validTxCount/(endProcessingTime - startProcessingTime)
+        if (blockNum != 4 && (blockNum - 4) % 120 == 0) {
+            val resultsFile = File(config["RESULTS_FILE"] as String)
+            resultsFile.appendText("\nNext set of blocks up to $blockNum" +
+                    "\nAverage block throughput = $blockTpsRunningAvg" +
+                    "\nAverage TPS = $totalTxTpsRunningAvg" +
+                    "\nAverage valid TPS = $validTxTpsRunningAvg" +
+                    "\nCurrent block processing latency = $currBlockLatency" +
+                    "\nAverage block processing latency = $avgBlockLatency\n")
+
+            println("Average block throughput = $blockTpsRunningAvg")
+            println("Average TPS = $totalTxTpsRunningAvg")
+            println("Average valid TPS = $validTxTpsRunningAvg")
+            println("Current block processing latency = $currBlockLatency")
+            println("Average block processing latency = $avgBlockLatency")
         }
     }
 

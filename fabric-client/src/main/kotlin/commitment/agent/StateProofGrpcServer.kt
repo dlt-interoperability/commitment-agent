@@ -2,14 +2,15 @@ package commitment.agent.fabric.client
 
 import io.grpc.Server
 import io.grpc.ServerBuilder
+import org.mapdb.DB
 import proof.StateProofServiceGrpcKt
 import proof.ProofOuterClass
 
 
-class StateProofGrpcServer(private val port: Int, val orgName: String) {
+class StateProofGrpcServer(private val port: Int, val orgName: String, val db: DB) {
     val server: Server = ServerBuilder
             .forPort(port)
-            .addService(GrpcService(orgName))
+            .addService(GrpcService(orgName, db))
             .build()
 
     fun start() {
@@ -32,10 +33,10 @@ class StateProofGrpcServer(private val port: Int, val orgName: String) {
     }
 }
 
-class GrpcService(val orgName: String) : StateProofServiceGrpcKt.StateProofServiceCoroutineImplBase() {
+class GrpcService(val orgName: String, val db: DB) : StateProofServiceGrpcKt.StateProofServiceCoroutineImplBase() {
     override suspend fun requestStateProof(request: ProofOuterClass.StateProofRequest): ProofOuterClass.StateProofResponse {
         println("Received request for state and proof: $request")
-        return createProof(request.key, request.commitment, orgName).fold({ error ->
+        return createProof(db, request.key, request.commitment, orgName).fold({ error ->
             println("Returning error: ${error.message}\n")
             ProofOuterClass.StateProofResponse.newBuilder()
                     .setError(error.message)

@@ -54,7 +54,7 @@ suspend fun sendCommitteeHelper(publicKeys: List<String>, config: Properties) = 
     Left(Error("Error sending management committee to Ethereum client: ${e.message}\n"))
 }
 
-fun sendCommitmentHelper(accumulatorWrapper: AccumulatorWrapper, blockNum: Int, config: Properties) = try {
+suspend fun sendCommitmentHelper(accumulatorWrapper: AccumulatorWrapper, blockNum: Int, config: Properties) = try {
     val client = CommitmentServiceGrpcClient(
             ManagedChannelBuilder.forAddress(
                     config["COMMITMENT_GRPC_SERVER_HOST"] as String,
@@ -67,7 +67,7 @@ fun sendCommitmentHelper(accumulatorWrapper: AccumulatorWrapper, blockNum: Int, 
             .setRollingHash(accumulatorWrapper.rollingHash)
             .setBlockHeight(blockNum)
             .build()
-    runBlocking {
+    coroutineScope {
         val ack = async { client.sendCommitment(commitment) }.await()
         if (ack.status != CommitmentOuterClass.Ack.STATUS.OK) {
             println("Error sending accumulator to Ethereum client: ${ack.message}\n")
